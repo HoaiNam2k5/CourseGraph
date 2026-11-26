@@ -91,7 +91,7 @@ try {
     await expect(page.locator('.graph-canvas canvas')).toBeVisible();
     await capture('graph');
     await page.getByRole('button', { name: 'Gợi ý học tập', exact: true }).click();
-    await page.getByLabel('Sinh viên', { exact: false }).selectOption('SV001');
+    await page.getByRole('combobox', { name: 'Sinh viên', exact: true }).selectOption('SV001');
     await page.getByRole('button', { name: 'Xem môn có thể học', exact: true }).click();
     await expect(page.getByRole('heading', { name: '13 môn đủ điều kiện học', exact: true })).toBeVisible();
     await capture('recommendations');
@@ -105,7 +105,7 @@ try {
     await blocked.getByText('Cần hoàn thành những môn nào?', { exact: true }).click();
     await expect(blocked.locator('.missing').first()).toBeVisible();
     await capture('recommendations-blocked');
-    await page.getByLabel('Sinh viên', { exact: false }).selectOption('SV002');
+    await page.getByRole('combobox', { name: 'Sinh viên', exact: true }).selectOption('SV002');
     await expect(page.getByRole('status').filter({ hasText: 'Hồ sơ hoặc bộ lọc đã thay đổi' })).toBeVisible();
     await expect(page.locator('.assessment-card')).toHaveCount(0);
     await page.getByRole('button', { name: 'Xem môn có thể học', exact: true }).click();
@@ -197,7 +197,7 @@ try {
     assert.equal(created.status(), 201);
     try {
       await page.getByRole('button', { name: 'Gợi ý học tập', exact: true }).click();
-      await page.getByLabel('Sinh viên', { exact: false }).selectOption(id);
+      await page.getByRole('combobox', { name: 'Sinh viên', exact: true }).selectOption(id);
       await page.getByRole('button', { name: 'Xem môn có thể học', exact: true }).click();
       await expect(page.getByRole('heading', { name: '10 môn đủ điều kiện học', exact: true })).toBeVisible();
     } finally { await page.request.delete(`/api/students/${id}`, { headers }); }
@@ -242,7 +242,7 @@ try {
     await capture('mobile-graph');
     await page.getByRole('button', { name: 'Mở điều hướng', exact: true }).click();
     await page.getByRole('button', { name: 'Gợi ý học tập', exact: true }).click();
-    await page.getByLabel('Sinh viên', { exact: false }).selectOption('SV001');
+    await page.getByRole('combobox', { name: 'Sinh viên', exact: true }).selectOption('SV001');
     await page.getByRole('button', { name: 'Xem môn có thể học', exact: true }).click();
     await expect(page.locator('.assessment-card').first()).toBeVisible();
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true);

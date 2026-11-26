@@ -16,12 +16,15 @@ import ConnectionStatus from './components/ConnectionStatus.js';
 const NetworkPage = lazy(() => import('./pages/NetworkPage.js'));
 const mainNav = [{ id: 'overview', title: 'Tổng quan', icon: LayoutDashboard }, { id: 'courses', title: 'Môn học', icon: BookOpen }, { id: 'graph', title: 'Mạng lưới', icon: Network }, { id: 'recommendations', title: 'Gợi ý học tập', icon: Sparkles }, { id: 'students', title: 'Sinh viên', icon: GraduationCap }];
 const catalogIds = ['relationships', 'programs', 'faculties', 'semesters', 'lecturers'];
+const adminPages = new Set(['users', 'transfers']);
 const pageTitles: Record<string, string> = { overview: 'Tổng quan', relationships: 'Liên kết dữ liệu', courses: 'Môn học', graph: 'Mạng lưới', recommendations: 'Gợi ý học tập', students: 'Sinh viên', programs: 'Chương trình đào tạo', faculties: 'Khoa', semesters: 'Học kỳ', lecturers: 'Giảng viên', users: 'Tài khoản & phân quyền', transfers: 'Nhập xuất dữ liệu', settings: 'Đổi mật khẩu' };
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null); const [initializing, setInitializing] = useState(true); const [authMessage, setAuthMessage] = useState('');
-  const [page, setPage] = useState(() => location.hash.slice(1) || 'overview'); const [graphCourse, setGraphCourse] = useState(''); const [sidebarOpen, setSidebarOpen] = useState(false); const [actionError, setActionError] = useState('');
+  const [requestedPage, setRequestedPage] = useState(() => location.hash.slice(1) || 'overview');
+  const [graphCourse, setGraphCourse] = useState(''); const [sidebarOpen, setSidebarOpen] = useState(false); const [actionError, setActionError] = useState('');
   const [graphStudent, setGraphStudent] = useState('');
+  const page = session?.user.role === 'VIEWER' && adminPages.has(requestedPage) ? 'overview' : requestedPage;
   const catalog = useResource<Catalog>(session ? '/catalog' : null);
   useEffect(() => {
     let active = true;
@@ -29,14 +32,44 @@ export default function App() {
     return () => { active = false; };
   }, []);
   useEffect(() => {
-    const unauthorized = () => { setSession(null); setCsrfToken(''); setAuthMessage('Phiên đăng nhập đã kết thúc. Vui lòng đăng nhập lại.'); };
+    const unauthorized = () => {
+      setSession(null);
+      setCsrfToken('');
+      setSidebarOpen(false);
+      setGraphCourse('');
+      setGraphStudent('');
+      setActionError('');
+      setAuthMessage('Phiên đăng nhập đã kết thúc. Vui lòng đăng nhập lại.');
+    };
     window.addEventListener('coursegraph:unauthorized', unauthorized);
-    const route = () => setPage(location.hash.slice(1) || 'overview'); window.addEventListener('hashchange', route);
+    const route = () => setRequestedPage(location.hash.slice(1) || 'overview'); window.addEventListener('hashchange', route);
     return () => { window.removeEventListener('coursegraph:unauthorized', unauthorized); window.removeEventListener('hashchange', route); };
   }, []);
-  function go(id: string) { location.hash = id; setPage(id); setSidebarOpen(false); setActionError(''); window.scrollTo({ top: 0 }); }
+  useEffect(() => {
+    if (page === requestedPage) return;
+    history.replaceState(null, '', '#overview');
+    setRequestedPage('overview');
+    setSidebarOpen(false);
+    window.scrollTo({ top: 0 });
+  }, [page, requestedPage]);
+  function go(id: string) { location.hash = id; setRequestedPage(id); setSidebarOpen(false); setActionError(''); window.scrollTo({ top: 0 }); }
   function openGraph(id: string, studentId = '') { setGraphCourse(id); setGraphStudent(studentId); go('graph'); }
-  async function logout() { setActionError(''); try { await api('/auth/logout', { method: 'POST' }); setSession(null); setCsrfToken(''); setAuthMessage(''); } catch (cause) { setActionError(errorMessage(cause)); } }
+  async function logout() {
+    setActionError('');
+    try {
+      await api('/auth/logout', { method: 'POST' });
+      history.replaceState(null, '', '#overview');
+      setRequestedPage('overview');
+      setSidebarOpen(false);
+      setGraphCourse('');
+      setGraphStudent('');
+      setSession(null);
+      setCsrfToken('');
+      setAuthMessage('');
+    } catch (cause) {
+      setActionError(errorMessage(cause));
+    }
+  }
   if (initializing) return <div className="initial-screen"><ConnectedMark /><Loading text="Đang mở không gian học tập…" /></div>;
   if (!session) return <Login message={authMessage} loggedIn={(value) => { setCsrfToken(value.csrfToken); setSession(value); setAuthMessage(''); }} />;
   const admin = session.user.role === 'ADMIN'; const entity = catalog.data?.entities.find((item) => item.slug === page);
@@ -54,7 +87,7 @@ export default function App() {
     return <section className="panel unavailable"><h1>Không tìm thấy trang</h1><p>Trang không tồn tại hoặc tài khoản chưa có quyền truy cập.</p><button className="button primary" onClick={() => go('overview')}>Về tổng quan</button></section>;
   };
   return <div className="app-shell"><a className="skip-link" href="#main-content" onClick={(event) => { event.preventDefault(); document.getElementById('main-content')?.focus(); }}>Bỏ qua điều hướng</a>{sidebarOpen && <button className="sidebar-backdrop" aria-label="Đóng điều hướng" onClick={() => setSidebarOpen(false)} />}
-    <aside className={`sidebar${sidebarOpen ? ' open' : ''}`}><a href="#overview" className="brand" aria-label="CourseGraph — Tổng quan"><ConnectedMark /><span>Course<span className="brand-light">Graph</span><small>MẠNG LƯỚI HỌC TẬP</small></span></a><button className="mobile-close icon-button" onClick={() => setSidebarOpen(false)} aria-label="Đóng điều hướng"><X size={20} /></button><div className="workspace-label"><span className="workspace-dot" />Không gian đào tạo</div><nav aria-label="Điều hướng chính"><p className="nav-section-label">KHÁM PHÁ</p>{mainNav.map(({ id, title, icon: Icon }) => <button key={id} className={`nav-item${page === id ? ' selected' : ''}`} aria-current={page === id ? 'page' : undefined} onClick={() => { if (id === 'graph') { setGraphCourse(''); setGraphStudent(''); } go(id); }}><Icon size={18} /><span>{title}</span>{page === id && <span className="nav-selected-dot" />}</button>)}<p className="nav-section-label">DỮ LIỆU ĐÀO TẠO</p>{catalogIds.map((id) => <button key={id} className={`nav-item secondary-nav${page === id ? ' selected' : ''}`} aria-current={page === id ? 'page' : undefined} onClick={() => go(id)}><span className="nav-mini-line" /><span>{pageTitles[id]}</span></button>)}{admin && <><p className="nav-section-label">QUẢN TRỊ</p><button className={`nav-item${page === 'users' ? ' selected' : ''}`} onClick={() => go('users')}><ShieldCheck size={18} />Tài khoản & phân quyền</button><button className={`nav-item${page === 'transfers' ? ' selected' : ''}`} onClick={() => go('transfers')}><Upload size={18} />Nhập xuất dữ liệu</button></>}</nav><div className="sidebar-note"><Network size={19} /><p>Kiến thức kết nối.<br /><strong>Hành trình rõ ràng.</strong></p></div><div className="sidebar-user"><div className="avatar">{(session.user.displayName || session.user.username).slice(0, 1).toLocaleUpperCase('vi')}</div><button className="user-label" onClick={() => go('settings')} title="Đổi mật khẩu"><strong>{session.user.displayName || session.user.username}</strong><span>{admin ? 'Quản trị viên' : 'Người xem'}</span></button><button className="icon-button" onClick={() => { void logout(); }} aria-label="Đăng xuất" title="Đăng xuất"><LogOut size={18} /></button></div></aside>
+    <aside className={`sidebar${sidebarOpen ? ' open' : ''}`}><a href="#overview" className="brand" aria-label="CourseGraph — Tổng quan"><ConnectedMark /><span>Course<span className="brand-light">Graph</span><small>MẠNG LƯỚI HỌC TẬP</small></span></a><button className="mobile-close icon-button" onClick={() => setSidebarOpen(false)} aria-label="Đóng điều hướng"><X size={20} /></button><div className="workspace-label"><span className="workspace-dot" />Không gian đào tạo</div><nav aria-label="Điều hướng chính"><p className="nav-section-label">KHÁM PHÁ</p>{mainNav.map(({ id, title, icon: Icon }) => <button key={id} className={`nav-item${page === id ? ' selected' : ''}`} aria-current={page === id ? 'page' : undefined} onClick={() => { if (id === 'graph') { setGraphCourse(''); setGraphStudent(''); } go(id); }}><Icon size={18} /><span>{title}</span>{page === id && <span className="nav-selected-dot" />}</button>)}<p className="nav-section-label">DỮ LIỆU ĐÀO TẠO</p>{catalogIds.map((id) => <button key={id} className={`nav-item secondary-nav${page === id ? ' selected' : ''}`} aria-current={page === id ? 'page' : undefined} onClick={() => go(id)}><span className="nav-mini-line" /><span>{pageTitles[id]}</span></button>)}{admin && <><p className="nav-section-label">QUẢN TRỊ</p><button className={`nav-item${page === 'users' ? ' selected' : ''}`} onClick={() => go('users')}><ShieldCheck size={18} />Tài khoản & phân quyền</button><button className={`nav-item${page === 'transfers' ? ' selected' : ''}`} onClick={() => go('transfers')}><Upload size={18} />Nhập xuất dữ liệu</button></>}</nav><p className="sidebar-note">Kết nối tri thức.</p><div className="sidebar-user"><div className="avatar">{(session.user.displayName || session.user.username).slice(0, 1).toLocaleUpperCase('vi')}</div><button className="user-label" onClick={() => go('settings')} title="Đổi mật khẩu"><strong>{session.user.displayName || session.user.username}</strong><span>{admin ? 'Quản trị viên' : 'Người xem'}</span></button><button className="icon-button" onClick={() => { void logout(); }} aria-label="Đăng xuất" title="Đăng xuất"><LogOut size={18} /></button></div></aside>
     <div className="workspace">
       <header className="topbar"><div className="breadcrumbs"><button className="icon-button menu-button" aria-label="Mở điều hướng" onClick={() => setSidebarOpen(true)}><Menu size={21} /></button><span>Không gian đào tạo</span><span className="breadcrumb-slash">/</span><strong>{pageTitles[page] ?? 'CourseGraph'}</strong></div><div className="topbar-actions"><ConnectionStatus admin={admin} /><button className="icon-button" aria-label="Cài đặt tài khoản" onClick={() => go('settings')}><Settings2 size={18} /></button></div></header>
       <main id="main-content" className="main-content" tabIndex={-1}>

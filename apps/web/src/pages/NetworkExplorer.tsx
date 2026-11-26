@@ -4,6 +4,7 @@ import { Network } from 'vis-network';
 import { foldSearchText } from '../../../../packages/shared/src/search.js';
 import { useResource } from '../api.js';
 import { Empty, ErrorNotice, Loading } from '../components/common.js';
+import { GraphDetailSheet, useMobileGraph } from '../components/GraphDetailSheet.js';
 import { formatNumber } from '../types.js';
 import {
   drawOverview, drawRecords, indexNetwork, networkCategories, otherEndpoint, recordKey,
@@ -44,6 +45,9 @@ function ExplorerContent({ view, changeGroup, moveFocus, snapshot }: {
   const model = useMemo(() => indexNetwork(snapshot), [snapshot]);
   const inspector = useRef<HTMLElement>(null);
   const searchField = useRef<HTMLInputElement>(null);
+  const detailTrigger = useRef<HTMLButtonElement>(null);
+  const mobile = useMobileGraph();
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [root, setRoot] = useState('');
   const [selected, setSelected] = useState('');
@@ -72,15 +76,16 @@ function ExplorerContent({ view, changeGroup, moveFocus, snapshot }: {
 
   useEffect(() => {
     const panel = inspector.current;
-    if (selected && panel) {
+    if (selected && panel && !mobile) {
       panel.scrollTop = 0;
       panel.querySelector('h2')?.focus({ preventScroll: true });
     }
-  }, [selected]);
+  }, [selected, mobile]);
 
   function openRecord(key: string) {
     setRoot(key);
     setSelected(key);
+    setDetailsOpen(mobile);
     setQuery('');
     setPageSize(listStep);
     setVisible(new Set((model.incidents.get(key) ?? []).slice(0, initialEdges).map((link) => link.id)));
@@ -102,6 +107,7 @@ function ExplorerContent({ view, changeGroup, moveFocus, snapshot }: {
     } else if (root) {
       setQuery('');
       setSelected(key);
+      setDetailsOpen(mobile);
     } else {
       openRecord(key);
     }
@@ -110,6 +116,7 @@ function ExplorerContent({ view, changeGroup, moveFocus, snapshot }: {
   function backToOverview(keyboard: boolean) {
     setRoot('');
     setSelected('');
+    setDetailsOpen(false);
     setVisible(new Set());
     setQuery('');
     setPageSize(listStep);
@@ -117,6 +124,17 @@ function ExplorerContent({ view, changeGroup, moveFocus, snapshot }: {
   }
 
   const category = networkCategories.find((item) => item.label === view);
+  const recordDetails = focus && <RecordInspector
+    key={selected}
+    record={focus}
+    related={incidentLinks}
+    records={model.records}
+    remainingLinks={remainingLinks.length}
+    onExpand={expandLinks}
+    onFollow={follow}
+    onCenter={selected === root ? undefined : () => openRecord(selected)}
+    focusHeading={mobile}
+  />;
   return <section className="panel network-explorer" aria-label="Khám phá mạng lưới">
     <header className="network-searchbar">
       {root && <button className="button secondary small" type="button" onClick={(event) => backToOverview(event.detail === 0)}><ArrowLeft size={16} />Quay lại tổng quan</button>}
@@ -140,16 +158,10 @@ function ExplorerContent({ view, changeGroup, moveFocus, snapshot }: {
               </button>
             </li>;
           })}</ul>
-        </> : focus ? <RecordInspector
-          key={selected}
-          record={focus}
-          related={incidentLinks}
-          records={model.records}
-          remainingLinks={remainingLinks.length}
-          onExpand={expandLinks}
-          onFollow={follow}
-          onCenter={selected === root ? undefined : () => openRecord(selected)}
-        /> : <>
+        </> : focus ? mobile ? <div className="network-detail-preview">
+          <span><strong>{focus.name}</strong><small>{focus.id} · {formatNumber(incidentLinks.length)} liên kết</small></span>
+          <button ref={detailTrigger} type="button" className="button secondary small" onClick={() => setDetailsOpen(true)}>Xem chi tiết nút</button>
+        </div> : recordDetails : <>
           <h2>{search ? 'Kết quả tìm kiếm' : category?.title ?? 'Bản ghi'}</h2>
           <p className="network-count" aria-live="polite">{formatNumber(matches.length)} bản ghi</p>
           {matches.length ? <>
@@ -164,6 +176,9 @@ function ExplorerContent({ view, changeGroup, moveFocus, snapshot }: {
         </>}
       </aside>
     </div>
+    {mobile && detailsOpen && focus && <GraphDetailSheet title="Chi tiết nút" returnFocus={detailTrigger} onClose={() => setDetailsOpen(false)}>
+      {recordDetails}
+    </GraphDetailSheet>}
     <div className="graph-footer">
       <span>{overview
         ? `${formatNumber(model.records.size)} bản ghi · ${formatNumber(model.linksById.size)} liên kết`
@@ -173,7 +188,7 @@ function ExplorerContent({ view, changeGroup, moveFocus, snapshot }: {
   </section>;
 }
 
-function RecordInspector({ record, related, records, remainingLinks, onExpand, onFollow, onCenter }: {
+function RecordInspector({ record, related, records, remainingLinks, onExpand, onFollow, onCenter, focusHeading }: {
   record: NetworkRecord;
   related: NetworkLink[];
   records: Map<string, NetworkRecord>;
@@ -181,12 +196,17 @@ function RecordInspector({ record, related, records, remainingLinks, onExpand, o
   onExpand: () => void;
   onFollow: (link: NetworkLink) => void;
   onCenter?: () => void;
+  focusHeading: boolean;
 }) {
   const [limit, setLimit] = useState(listStep);
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    if (focusHeading) heading.current?.focus({ preventScroll: true });
+  }, [focusHeading]);
   const key = recordKey(record);
   return <>
     <p className="network-record-meta">{networkCategories.find((item) => item.label === record.label)?.title} · {record.id}</p>
-    <h2 tabIndex={-1}>{record.name}</h2>
+    <h2 ref={heading} tabIndex={-1}>{record.name}</h2>
     {onCenter && <button className="button secondary small" type="button" onClick={onCenter}><Focus size={15} />Đặt làm trung tâm</button>}
     <div className="network-incident-title"><h3>Liên kết trực tiếp</h3><span className="network-count">{formatNumber(related.length)}</span></div>
     {remainingLinks > 0 && <button className="button secondary small network-expand" type="button" onClick={onExpand}><Plus size={15} />Mở rộng liên kết ({formatNumber(remainingLinks)})</button>}

@@ -9,10 +9,14 @@ const origin = process.env.APP_ORIGIN ?? 'http://127.0.0.1:3000';
 async function login(page: Page) {
   test.skip(!password, 'ADMIN_PASSWORD must be configured in local .env.');
   await page.goto('/');
-  await page.getByLabel('Tên đăng nhập', { exact: true }).fill(username);
-  await page.getByLabel('Mật khẩu', { exact: true }).fill(password!);
-  await page.getByRole('button', { name: 'Vào không gian học tập' }).click();
+  await submitLogin(page, username, password!);
   await expect(page.getByRole('heading', { name: 'Nhìn thấy những kết nối.' })).toBeVisible();
+}
+
+async function submitLogin(page: Page, username: string, password: string) {
+  await page.getByLabel('Tên đăng nhập', { exact: true }).fill(username);
+  await page.getByLabel('Mật khẩu', { exact: true }).fill(password);
+  await page.getByRole('button', { name: 'Vào không gian học tập' }).click();
 }
 
 test('login serves the favicon and supports selecting, moving and resetting the demo graph', async ({ page }) => {
@@ -57,6 +61,8 @@ test('login serves the favicon and supports selecting, moving and resetting the 
 test('admin reads real dashboard, catalog and signs out', async ({ page }) => {
   await login(page);
   await expect(page.getByText('Database sẵn sàng', { exact: true })).toBeVisible();
+  await expect(page.getByText('Hiển thị 6 trên 10 khoa', { exact: true })).toBeVisible();
+  await expect(page.getByRole('main').getByRole('button', { name: /mở mạng lưới|khám phá mạng lưới/i })).toHaveCount(1);
   await page.screenshot({ path: 'evidence/dashboard.png', fullPage: true });
   await page.getByRole('button', { name: 'Môn học', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Môn học', exact: true })).toBeVisible();
@@ -69,6 +75,30 @@ test('admin reads real dashboard, catalog and signs out', async ({ page }) => {
   await page.getByRole('button', { name: 'Đóng hộp thoại' }).click();
   await page.getByRole('button', { name: 'Đăng xuất', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Chào mừng trở lại.' })).toBeVisible();
+});
+
+test('a viewer signing in after an admin lands on the overview and can follow shared links', async ({ page }) => {
+  await login(page);
+  const viewer = { username: 'e2e-switch-viewer', password: 'CourseGraph-Switch-E2E-2026!', displayName: 'Người xem thử', role: 'VIEWER' };
+  const session = await (await page.request.get('/api/auth/me')).json();
+  const created = await page.request.post('/api/users', {
+    headers: { Origin: origin, 'x-csrf-token': session.csrfToken as string },
+    data: viewer,
+  });
+  expect([201, 409]).toContain(created.status());
+  await page.getByRole('button', { name: 'Tài khoản & phân quyền', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Tài khoản & quyền truy cập' })).toBeVisible();
+  await page.getByRole('button', { name: 'Đăng xuất' }).click();
+  await expect(page).toHaveURL(/#overview$/);
+  await page.goto('/#transfers');
+  await submitLogin(page, viewer.username, viewer.password);
+  await expect(page.getByRole('heading', { name: 'Nhìn thấy những kết nối.' })).toBeVisible();
+  await expect(page).toHaveURL(/#overview$/);
+  await expect(page.getByRole('button', { name: 'Tài khoản & phân quyền', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Nhập xuất dữ liệu', exact: true })).toHaveCount(0);
+  await page.goto('/#courses');
+  await expect(page.getByRole('heading', { name: 'Môn học', exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/#courses$/);
 });
 
 test('admin creates, edits and deletes a course through the UI', async ({ page }) => {
@@ -115,7 +145,16 @@ test('graph and recommendations load from Neo4j', async ({ page }) => {
   await expect(page.locator('.graph-canvas canvas')).toBeVisible();
   await page.screenshot({ path: 'evidence/graph.png', fullPage: true });
   await page.getByRole('button', { name: 'Gợi ý học tập', exact: true }).click();
-  await page.getByLabel('Sinh viên', { exact: false }).selectOption('SV001');
+  const students = page.getByRole('combobox', { name: 'Sinh viên', exact: true });
+  const search = page.getByRole('searchbox', { name: 'Tìm sinh viên' });
+  const option = students.locator('option[value="SV001"]');
+  await expect(option).toBeAttached();
+  const name = (await option.textContent())!.split(' · ').at(-1)!;
+  await search.fill(name.normalize('NFD').replace(/\p{M}/gu, '').replace(/đ/gi, 'd').toLowerCase());
+  await expect(option).toBeAttached();
+  await search.fill('sv001');
+  await expect(students.locator('option')).toHaveCount(2);
+  await students.selectOption('SV001');
   await page.getByRole('button', { name: 'Xem môn có thể học', exact: true }).click();
   await expect(page.getByRole('heading', { name: /môn đủ điều kiện học/ })).toBeVisible();
   await page.screenshot({ path: 'evidence/recommendations.png', fullPage: true });
@@ -129,6 +168,27 @@ test('explore all network types and return to the course view on mobile', async 
   const view = page.getByRole('combobox', { name: 'Loại mạng lưới', exact: true });
   await expect(view).toHaveValue('MonHoc');
   await expect(view.locator('option')).toHaveCount(7);
+  const courseCanvas = page.locator('.graph-explorer canvas');
+  await expect(courseCanvas).toBeVisible();
+  await expect.poll(() => courseCanvas.evaluate(canvas => Math.round(canvas.getBoundingClientRect().top + window.scrollY))).toBeLessThan(400);
+  const filters = page.getByRole('button', { name: 'Bộ lọc', exact: true });
+  await expect(filters).toHaveAttribute('aria-expanded', 'false');
+  await filters.click();
+  const studentSearch = page.getByRole('searchbox', { name: 'Tìm sinh viên' });
+  await studentSearch.fill('sv001');
+  const student = page.getByRole('combobox', { name: 'Trạng thái theo sinh viên' });
+  await expect(student.locator('option')).toHaveCount(2);
+  await student.selectOption('SV001');
+  await filters.click();
+  const detailTrigger = page.getByRole('button', { name: 'Xem chi tiết môn học' });
+  await detailTrigger.click();
+  const courseSheet = page.getByRole('dialog', { name: 'Thông tin môn học' });
+  await expect(courseSheet).toBeVisible();
+  await courseSheet.getByRole('combobox', { name: 'Chọn môn để xem chi tiết' }).selectOption('MonHoc:MH005');
+  await expect(courseSheet.locator('.code-pill').filter({ hasText: 'MH005' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(courseSheet).toHaveCount(0);
+  await expect(detailTrigger).toBeFocused();
   await view.selectOption('all');
   const explorer = page.getByRole('region', { name: 'Khám phá mạng lưới', exact: true });
   await expect(explorer.locator('canvas')).toBeVisible();
@@ -142,7 +202,8 @@ test('explore all network types and return to the course view on mobile', async 
     const row = explorer.getByRole('button', { name: /^Xem / }).filter({ hasText: id }).first();
     await expect(row).toBeVisible();
     await row.click();
-    await expect(explorer.getByRole('heading', { name: 'Liên kết trực tiếp', exact: true })).toBeVisible();
+    const details = explorer.getByRole('dialog', { name: 'Chi tiết nút' });
+    await expect(details.getByRole('heading', { name: 'Liên kết trực tiếp', exact: true })).toBeVisible();
     if (id === 'HK001') {
       const expand = explorer.getByRole('button', { name: /^Mở rộng liên kết/ });
       const initialLabel = await expand.textContent();
@@ -150,6 +211,7 @@ test('explore all network types and return to the course view on mobile', async 
       await expect(expand).not.toHaveText(initialLabel ?? '');
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await details.getByRole('button', { name: 'Đóng chi tiết nút' }).click();
   }
   await view.selectOption('MonHoc');
   await expect(page.getByRole('combobox', { name: 'Môn học trung tâm' })).toBeVisible();
@@ -232,12 +294,18 @@ test('admin previews and imports the original seven CSV files without duplicates
   await page.getByRole('button', { name: 'Nhập xuất dữ liệu', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Nhập và xuất dữ liệu', exact: true })).toBeVisible();
   const files = ['MonHoc.csv', 'SinhVien.csv', 'GiangVien.csv', 'Khoa.csv', 'HocKy.csv', 'ChuongTrinhDaoTao.csv', 'QuanHeLienKet.csv'];
-  const picker = page.getByLabel('Chọn bộ 7 file CSV', { exact: true });
+  const picker = page.getByLabel('Chọn bộ 7 tệp CSV', { exact: true });
+  const backup = page.locator('details.transfer-backup');
+  await expect(backup).not.toHaveAttribute('open', '');
+  await backup.getByText('Sao lưu cơ sở dữ liệu', { exact: true }).click();
+  await expect(backup).toHaveAttribute('open', '');
+  await expect(page.getByRole('heading', { name: 'Tệp CSV bắt buộc' })).toBeVisible();
   await picker.setInputFiles(path.resolve('CSV', files[0]));
-  await expect(page.getByRole('alert')).toContainText('Cần chọn đủ 7 file cùng lúc');
+  await expect(page.getByRole('alert')).toContainText('Cần chọn đủ 7 tệp cùng lúc');
   await expect(page.getByRole('button', { name: 'Kiểm tra dữ liệu', exact: true })).toBeDisabled();
   await picker.setInputFiles(files.map((filename) => path.resolve('CSV', filename)));
-  await expect(page.getByText('Đã chọn 7/7 file CSV', { exact: true })).toBeVisible();
+  await expect(page.getByText('Đã chọn 7/7 tệp CSV', { exact: true })).toBeVisible();
+  await expect(page.locator('.csv-checklist li.ready')).toHaveCount(7);
   await expect(page.getByRole('button', { name: 'Kiểm tra dữ liệu', exact: true })).toBeEnabled();
   const previewResponse = page.waitForResponse((response) => response.url().endsWith('/api/imports/csv/preview') && response.request().method() === 'POST');
   await page.getByRole('button', { name: 'Kiểm tra dữ liệu', exact: true }).click();

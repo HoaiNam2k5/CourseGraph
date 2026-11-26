@@ -79,9 +79,7 @@ svg { flex-shrink: 0; vertical-align: middle; }
 .nav-selected-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--amber); margin-left: auto; }
 .secondary-nav { min-height: 35px; padding-top: 7px; padding-bottom: 7px; }
 .nav-mini-line { height: 1px; width: 12px; background: currentColor; opacity: .6; margin-left: 4px; }
-.sidebar-note { display: flex; align-items: flex-start; gap: 12px; margin: auto 10px 22px; border-top: 1px solid var(--sidebar-line); padding-top: 18px; }
-.sidebar-note p { font-size: 13px; margin: 0; line-height: 1.8; }
-.sidebar-note strong { color: var(--cream); font-weight: 400; }
+.sidebar-note { margin: auto 10px 14px; border-top: 1px solid var(--sidebar-line); padding-top: 12px; font-size: 13px; }
 .sidebar-user { border-top: 1px solid var(--sidebar-line); display: flex; align-items: center; gap: 10px; padding: 17px 4px; }
 .avatar { width: 32px; height: 32px; border: 1px solid var(--sage); background: var(--sidebar-active); color: var(--cream); border-radius: 50%; display: grid; place-items: center; font: 16px var(--display); flex-shrink: 0; }
 .user-label { min-width: 0; flex: 1; background: none; border: 0; padding: 0; text-align: left; color: var(--cream); }
@@ -167,6 +165,7 @@ svg { flex-shrink: 0; vertical-align: middle; }
 .feature-bottom span:first-child { display: flex; align-items: center; gap: 7px; }
 .feature-bottom i { width: 5px; height: 5px; background: var(--sage); border-radius: 50%; }
 .faculty-panel { padding: 27px 26px; }
+.faculty-coverage { margin: 5px 0 0; font-size: 13px; color: var(--muted); }
 .bar-list { display: grid; gap: 14px; }
 .bar-item > div { display: flex; align-items: center; justify-content: space-between; gap: 15px; font-size: 12px; margin-bottom: 5px; }
 .bar-item > div strong { font-size: 13px; font-weight: 500; }

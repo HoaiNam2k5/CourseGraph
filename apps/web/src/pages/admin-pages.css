@@ -1,0 +1,50 @@
+.admin-transfer :is(.section-heading, .transfer-checklist-heading) h2,
+.admin-transfer .transfer-checklist-heading h3 { margin: 0; }
+
+.admin-transfer .section-heading { margin-bottom: 14px; }
+.admin-transfer .import-format { gap: 12px 20px; margin: 0 0 14px; }
+
+.transfer-csv {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 175px), 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.admin-transfer .file-drop { min-height: 122px; margin: 0 0 16px; padding: 16px; }
+.transfer-csv .file-drop { margin: 0; }
+.admin-transfer .csv-checklist {
+  min-width: 0;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+.transfer-checklist-heading { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 8px; }
+.transfer-checklist-heading h3 { font-family: inherit; font-size: 13px; font-weight: 600; line-height: 1.4; color: var(--ink); }
+.admin-transfer .csv-checklist ul { grid-template-columns: 1fr; }
+.admin-transfer .csv-checklist li span { flex-shrink: 1; min-width: 0; }
+.admin-transfer .csv-checklist li svg { flex: none; }
+.admin-transfer .export-row { margin-top: 16px; padding-top: 16px; }
+
+.transfer-backup summary {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 15px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.transfer-backup summary::-webkit-details-marker { display: none; }
+.transfer-backup summary:focus-visible { outline: 2px solid var(--amber); outline-offset: -3px; }
+.transfer-backup .backup-chevron { margin-inline-start: auto; }
+.transfer-backup[open] .backup-chevron { transform: rotate(180deg); }
+.transfer-backup-content { padding: 0 18px 15px; color: var(--muted); font-size: 13px; }
+.transfer-backup-content p { margin: 0; }
+.transfer-backup-content p + p { margin-top: 7px; }
+
+.admin-accounts .role-explainer { gap: 14px; padding-block: 14px; }
+.admin-accounts .role-explainer small { font-size: 13px; line-height: 1.45; }
+.admin-accounts .status-text { font-size: 13px; }

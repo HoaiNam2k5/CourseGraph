@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { DataSet } from 'vis-data';
 import { Network, type Edge, type Node } from 'vis-network';
-import { ArrowRight, Expand, Maximize2, Minimize2, Minus, Plus, Route, X } from 'lucide-react';
+import { ArrowRight, Expand, Maximize2, Minimize2, Minus, Plus, Route, SlidersHorizontal, X } from 'lucide-react';
 import { api, errorMessage, useAllPages, useResource } from '../api.js';
 import type { BusinessNode, GraphResult, NodeDetail, PathResult, RecommendationResult } from '../types.js';
 import { nodeName } from '../types.js';
 import { assessmentStyle, directCourseRelations, graphPresentation, rawCourseId, rawGraphId } from '../graph-presentation.js';
 import { Empty, ErrorNotice, Loading } from '../components/common.js';
+import { GraphDetailSheet, isMobileGraph, useMobileGraph } from '../components/GraphDetailSheet.js';
+import StudentPicker from '../components/StudentPicker.js';
 
 const motion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches ? false : { duration: 200, easingFunction: 'easeInOutQuad' as const };
 
@@ -21,6 +23,10 @@ export default function GraphPage({ initialCourse = '', initialStudent = '' }: {
   const [hierarchical, setHierarchical] = useState(false); const [selectedId, setSelectedId] = useState('');
   const [activePath, setActivePath] = useState<PathResult['paths'][number] | null>(null);
   const [nativeFullscreen, setNativeFullscreen] = useState(false); const [expandedFallback, setExpandedFallback] = useState(false); const [fullscreenHint, setFullscreenHint] = useState('');
+  const mobile = useMobileGraph();
+  const [showDetails, setShowDetails] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const detailTrigger = useRef<HTMLButtonElement>(null);
   const courses = useAllPages<BusinessNode>('/courses'); const students = useAllPages<BusinessNode>('/students');
   const graph = useResource<GraphResult>(`/graph?depth=${depth}${course ? `&courseId=${encodeURIComponent(course)}` : ''}`);
   const selectedRawId = rawGraphId(selectedId);
@@ -44,7 +50,8 @@ export default function GraphPage({ initialCourse = '', initialStudent = '' }: {
     if (!viewport) return;
     const instance = new Network(viewport, { nodes, edges }, { autoResize: true, layout: { randomSeed: 14 }, physics: false, interaction: { hover: true, keyboard: { enabled: false }, zoomView: true, dragView: true }, edges: { selectionWidth: 0 } });
     network.current = instance;
-    instance.on('selectNode', (event: { nodes: (string | number)[] }) => { setSelectedId(String(event.nodes[0] ?? '')); setActivePath(null); });
+    instance.on('selectNode', (event: { nodes: (string | number)[] }) => { setSelectedId(String(event.nodes[0] ?? '')); setActivePath(null);
+      if (isMobileGraph() && event.nodes.length) setShowDetails(true); });
     instance.on('deselectNode', () => setSelectedId(''));
     instance.on('hoverNode', () => viewport.classList.add('node-hovered'));
     instance.on('blurNode', () => viewport.classList.remove('node-hovered'));
@@ -85,6 +92,7 @@ export default function GraphPage({ initialCourse = '', initialStudent = '' }: {
     const oldOverflow = document.body.style.overflow; document.body.style.overflow = 'hidden';
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const escape = (event: KeyboardEvent) => {
+      if (frame.current?.querySelector('dialog[open]')) return;
       if (event.key === 'Escape') { event.preventDefault(); setExpandedFallback(false); }
       if (event.key === 'Tab') {
         const controls = [...(frame.current?.querySelectorAll<HTMLElement>('button:not([disabled]), select:not([disabled]), input:not([disabled]), summary, a[href], [tabindex="0"]') ?? [])].filter((element) => element.offsetParent !== null);
@@ -110,42 +118,60 @@ export default function GraphPage({ initialCourse = '', initialStudent = '' }: {
   const zoom = (factor: number) => { const instance = network.current; if (instance) instance.moveTo({ scale: instance.getScale() * factor, animation: motion() }); };
   const pathOutsideCount = activePath?.courses.filter((item) => !graph.data?.nodes.some((node) => rawCourseId(node) === item.id)).length ?? 0;
 
+  const legend = <div className="graph-status-legend" aria-label="Chú giải trạng thái và liên kết">
+    {student && Object.entries(assessmentStyle).map(([key, value]) => <span key={key}><i className={`status-dot status-${key}`} />{value.label}</span>)}
+    <span><i className="chain-line upstream" />Chuỗi cần học trước</span><span><i className="chain-line downstream" />Chuỗi phụ thuộc phía sau</span>
+    {activePath && <span><i className="chain-line path" />Đường đi đang tìm<button className="icon-button" onClick={() => setActivePath(null)} aria-label="Bỏ tô đường đi"><X size={13} /></button></span>}
+  </div>;
+  const details = <aside className="selection-panel graph-course-panel" aria-label="Thông tin môn học đang chọn">
+    {!mobile && <div className="section-heading"><h2>Thông tin môn học</h2></div>}
+    <label className="field"><span>Chọn môn để xem chi tiết</span><select value={graph.data?.nodes.some((node) => node.id === selectedId) ? selectedId : ''} onChange={(event) => selectNode(event.target.value)}><option value="">Chọn trên đồ thị hoặc tại đây…</option>{graph.data?.nodes.map((node) => <option value={node.id} key={node.id}>{rawCourseId(node)} · {nodeName(node)}</option>)}</select></label>
+    {selected ? <><span className="code-pill">{rawCourseId(selected)}{rawCourseId(selected) === course ? ' · Trung tâm' : ''}</span><h3 className="detail-name">{nodeName(selected)}</h3><dl className="property-grid"><div><dt>Số tín chỉ</dt><dd>{selected.properties.SoTC ?? '—'}</dd></div><div><dt>Loại môn</dt><dd>{selected.properties.LoaiMon ?? '—'}</dd></div></dl>
+      {selectedAssessment && <div className={`graph-course-status status-${selectedAssessment.status}`}><strong>{assessmentStyle[selectedAssessment.status].label}</strong><span>{student}</span></div>}
+      {student && !selectedAssessment && !assessment.loading && !assessment.error && <p className="muted">Chưa có đánh giá học tập cho môn này.</p>}
+      {selectedAssessment && selectedAssessment.missingPrerequisites.length > 0 && <div className="graph-missing"><h4>{selectedAssessment.status === 'blocked' ? 'Cần hoàn thành thêm' : 'Lịch sử tiên quyết cần đối chiếu'}</h4><CourseButtons nodes={selectedAssessment.missingPrerequisites} choose={selectNode} /></div>}
+      {detail.loading || !currentDetail ? detail.error ? <ErrorNotice message={detail.error} retry={detail.reload} /> : <Loading text="Đang đọc liên kết môn học…" /> : <>
+        <div className="graph-relation-section"><h4>Tiên quyết trực tiếp <span>{direct.prerequisites.length}</span></h4>{direct.prerequisites.length ? <CourseButtons nodes={direct.prerequisites} choose={selectNode} /> : <p className="muted">Không có tiên quyết trực tiếp.</p>}</div>
+        <div className="graph-relation-section"><h4>Phụ thuộc trực tiếp <span>{direct.dependents.length}</span></h4>{direct.dependents.length ? <CourseButtons nodes={direct.dependents} choose={selectNode} /> : <p className="muted">Không có môn phụ thuộc trực tiếp.</p>}</div>
+        <details className="graph-transitive"><summary>Toàn bộ môn tiên quyết · {currentDetail.prerequisites.length}</summary><CourseButtons nodes={currentDetail.prerequisites} choose={selectNode} /></details><details className="graph-transitive"><summary>Các môn phụ thuộc · {currentDetail.dependents.length}</summary><CourseButtons nodes={currentDetail.dependents} choose={selectNode} /></details>
+      </>}
+    </> : <div className="graph-selection-hint"><Route size={27} /><p>Chọn một môn để xem chi tiết và tô rõ chuỗi học trước / học sau ngay trong đồ thị.</p>{!student && <small>Chọn thêm sinh viên để xem trạng thái của từng môn.</small>}</div>}
+  </aside>;
+
   return <>
     <section ref={frame} className={`panel graph-panel graph-explorer${expandedFallback ? ' graph-expanded-fallback' : ''}`} aria-label="Không gian khám phá mạng lưới">
       <div className="graph-toolbar">
         <label className="field compact"><span>Môn học trung tâm</span><select value={course} onChange={(event) => { setCourse(event.target.value); setSelectedId(event.target.value ? `MonHoc:${event.target.value}` : ''); setActivePath(null); }}><option value="">Tất cả môn học</option>{courses.data?.items.map((node) => <option value={node.id} key={node.id}>{node.id} · {nodeName(node)}</option>)}</select></label>
-        <label className="field compact depth-field"><span>Độ sâu liên kết</span><select value={depth} onChange={(event) => setDepth(event.target.value)}>{[1, 2, 3, 4].map((value) => <option value={value} key={value}>{value} cấp</option>)}</select></label>
-        <label className="field compact graph-student-field"><span>Trạng thái theo sinh viên</span><select value={student} onChange={(event) => setStudent(event.target.value)}><option value="">Không áp dụng sinh viên</option>{students.data?.items.map((node) => <option value={node.id} key={node.id}>{node.id} · {nodeName(node)}</option>)}</select></label>
-        <label className="checkbox-row"><input type="checkbox" checked={hierarchical} onChange={(event) => setHierarchical(event.target.checked)} />Theo cấp bậc</label>
-        <button className="button secondary small graph-fullscreen-toggle" aria-label={fullscreen ? 'Thoát toàn màn hình đồ thị' : 'Mở toàn màn hình đồ thị'} aria-pressed={fullscreen} onClick={() => { void toggleFullscreen(); }}>{fullscreen ? <Minimize2 size={16} /> : <Expand size={16} />}{fullscreen ? 'Thu gọn' : 'Toàn màn hình'}</button>
+        <button type="button" className="button secondary small graph-mobile-control" aria-expanded={showFilters} aria-controls="course-graph-filters" onClick={() => setShowFilters(!showFilters)}>
+          <SlidersHorizontal size={16} aria-hidden="true" />Bộ lọc
+        </button>
+        <div id="course-graph-filters" className={`graph-secondary-filters${showFilters ? ' is-expanded' : ''}`}>
+          <label className="field compact depth-field"><span>Độ sâu liên kết</span><select value={depth} onChange={(event) => setDepth(event.target.value)}>{[1, 2, 3, 4].map((value) => <option value={value} key={value}>{value} cấp</option>)}</select></label>
+          <StudentPicker students={students.data?.items ?? []} value={student} onChange={setStudent}
+            label="Trạng thái theo sinh viên" placeholder="Không áp dụng sinh viên" />
+          <label className="checkbox-row"><input type="checkbox" checked={hierarchical} onChange={(event) => setHierarchical(event.target.checked)} />Theo cấp bậc</label>
+        </div>
+        <button className="button secondary small graph-fullscreen-toggle" aria-label={fullscreen ? 'Thoát toàn màn hình đồ thị' : 'Mở toàn màn hình đồ thị'} aria-pressed={fullscreen} onClick={() => { void toggleFullscreen(); }}>{fullscreen ? <Minimize2 size={16} /> : <Expand size={16} />}<span>{fullscreen ? 'Thu gọn' : 'Toàn màn hình'}</span></button>
       </div>
       {courses.error && <ErrorNotice message={courses.error} retry={courses.reload} />}{students.error && <ErrorNotice message={students.error} retry={students.reload} />}
       {fullscreenHint && <div className="notice info" role="status">{fullscreenHint}</div>}
       {assessment.loading && <div className="graph-assessment-notice" role="status">Đang kiểm tra trạng thái học tập; màu trạng thái sẽ xuất hiện khi tải xong.</div>}{assessment.error && <ErrorNotice message={assessment.error} retry={assessment.reload} />}
-      <div className="graph-status-legend" aria-label="Chú giải trạng thái và liên kết">
-        {student && Object.entries(assessmentStyle).map(([key, value]) => <span key={key}><i className={`status-dot status-${key}`} />{value.label}</span>)}
-        <span><i className="chain-line upstream" />Chuỗi cần học trước</span><span><i className="chain-line downstream" />Chuỗi phụ thuộc phía sau</span>
-        {activePath && <span><i className="chain-line path" />Đường đi đang tìm<button className="icon-button" onClick={() => setActivePath(null)} aria-label="Bỏ tô đường đi"><X size={13} /></button></span>}
-      </div>
+      {!mobile && legend}
       <div className="graph-workbench"><div className="graph-stage">
-        <div ref={container} className="graph-canvas" role="img" aria-label={`Đồ thị gồm ${graph.data?.nodes.length ?? 0} môn học và ${graph.data?.edges.length ?? 0} liên kết tiên quyết. Dùng danh sách bên cạnh để chọn môn và đọc chi tiết.`} />
+        <div ref={container} className="graph-canvas" role="img" aria-label={`Đồ thị gồm ${graph.data?.nodes.length ?? 0} môn học và ${graph.data?.edges.length ?? 0} liên kết tiên quyết. ${mobile ? 'Dùng nút Xem chi tiết môn học để chọn môn và đọc thông tin.' : 'Dùng danh sách bên cạnh để chọn môn và đọc chi tiết.'}`} />
         {graph.loading && <div className="graph-overlay"><Loading text="Đang dựng mạng lưới…" /></div>}{graph.error && <div className="graph-overlay"><ErrorNotice message={graph.error} retry={graph.reload} /></div>}{!graph.loading && !graph.error && !graph.data?.nodes.length && <div className="graph-overlay"><Empty title="Chưa có môn học trong mạng lưới" /></div>}
         <div className="graph-controls"><button className="icon-button" aria-label="Phóng to đồ thị" onClick={() => zoom(1.2)}><Plus size={18} /></button><button className="icon-button" aria-label="Thu nhỏ đồ thị" onClick={() => zoom(0.8)}><Minus size={18} /></button><button className="icon-button" aria-label="Căn vừa đồ thị" onClick={() => { if (network.current) fitGraph(network.current); }}><Maximize2 size={18} /></button></div>
         <div className="graph-legend"><span><i className="legend-line" />Mũi tên: tiên quyết → môn học sau</span></div>
-      </div><aside className="selection-panel graph-course-panel" aria-label="Thông tin môn học đang chọn">
-        <div className="section-heading"><h2>Thông tin môn học</h2></div>
-        <label className="field"><span>Chọn môn để xem chi tiết</span><select value={graph.data?.nodes.some((node) => node.id === selectedId) ? selectedId : ''} onChange={(event) => selectNode(event.target.value)}><option value="">Chọn trên đồ thị hoặc tại đây…</option>{graph.data?.nodes.map((node) => <option value={node.id} key={node.id}>{rawCourseId(node)} · {nodeName(node)}</option>)}</select></label>
-        {selected ? <><span className="code-pill">{rawCourseId(selected)}{rawCourseId(selected) === course ? ' · Trung tâm' : ''}</span><h3 className="detail-name">{nodeName(selected)}</h3><dl className="property-grid"><div><dt>Số tín chỉ</dt><dd>{selected.properties.SoTC ?? '—'}</dd></div><div><dt>Loại môn</dt><dd>{selected.properties.LoaiMon ?? '—'}</dd></div></dl>
-          {selectedAssessment && <div className={`graph-course-status status-${selectedAssessment.status}`}><strong>{assessmentStyle[selectedAssessment.status].label}</strong><span>{student}</span></div>}
-          {student && !selectedAssessment && !assessment.loading && !assessment.error && <p className="muted">Chưa có đánh giá học tập cho môn này.</p>}
-          {selectedAssessment && selectedAssessment.missingPrerequisites.length > 0 && <div className="graph-missing"><h4>{selectedAssessment.status === 'blocked' ? 'Cần hoàn thành thêm' : 'Lịch sử tiên quyết cần đối chiếu'}</h4><CourseButtons nodes={selectedAssessment.missingPrerequisites} choose={selectNode} /></div>}
-          {detail.loading || !currentDetail ? detail.error ? <ErrorNotice message={detail.error} retry={detail.reload} /> : <Loading text="Đang đọc liên kết môn học…" /> : <>
-            <div className="graph-relation-section"><h4>Tiên quyết trực tiếp <span>{direct.prerequisites.length}</span></h4>{direct.prerequisites.length ? <CourseButtons nodes={direct.prerequisites} choose={selectNode} /> : <p className="muted">Không có tiên quyết trực tiếp.</p>}</div>
-            <div className="graph-relation-section"><h4>Phụ thuộc trực tiếp <span>{direct.dependents.length}</span></h4>{direct.dependents.length ? <CourseButtons nodes={direct.dependents} choose={selectNode} /> : <p className="muted">Không có môn phụ thuộc trực tiếp.</p>}</div>
-            <details className="graph-transitive"><summary>Toàn bộ môn tiên quyết · {currentDetail.prerequisites.length}</summary><CourseButtons nodes={currentDetail.prerequisites} choose={selectNode} /></details><details className="graph-transitive"><summary>Các môn phụ thuộc · {currentDetail.dependents.length}</summary><CourseButtons nodes={currentDetail.dependents} choose={selectNode} /></details>
-          </>}
-        </> : <div className="graph-selection-hint"><Route size={27} /><p>Chọn một môn để xem chi tiết và tô rõ chuỗi học trước / học sau ngay trong đồ thị.</p>{!student && <small>Chọn thêm sinh viên để xem trạng thái của từng môn.</small>}</div>}
-      </aside></div>
+      </div>{!mobile && details}</div>
+      {mobile && <>
+        {legend}
+        <div className="graph-detail-launcher">
+          <button ref={detailTrigger} type="button" className="button secondary small" onClick={() => setShowDetails(true)}>Xem chi tiết môn học</button>
+        </div>
+        {showDetails && <GraphDetailSheet title="Thông tin môn học" returnFocus={detailTrigger} onClose={() => setShowDetails(false)}>
+          {details}
+        </GraphDetailSheet>}
+      </>}
       <div className="graph-footer"><span>{graph.data?.nodes.length ?? 0} môn học · {graph.data?.edges.length ?? 0} liên kết{student ? ` · ${student}` : ''}</span><span>Kéo để di chuyển · Cuộn để phóng to{fullscreen ? ' · Escape để thoát' : ''}</span></div>
       {graph.data?.truncated && <div className="notice warning">Mạng lưới đang được giới hạn để dễ quan sát. Thông tin liên kết trong bảng bên cạnh được đọc riêng từ database, không chỉ từ phần đồ thị đang hiển thị.</div>}
     </section>

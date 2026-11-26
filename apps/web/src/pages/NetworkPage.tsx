@@ -2,13 +2,14 @@ import { lazy, Suspense, useState } from 'react';
 import { entityDefinitions, type EntityLabel } from '../../../../packages/shared/src/catalog.js';
 import { Loading, PageTitle } from '../components/common.js';
 import CourseGraph from './Graph.js';
+import './graph-mobile.css';
 
 const NetworkExplorer = lazy(() => import('./NetworkExplorer.js'));
 
 export default function NetworkPage({ initialCourse, initialStudent }: { initialCourse: string; initialStudent: string }) {
   const [view, setView] = useState<EntityLabel | 'all'>('MonHoc');
 
-  return <>
+  return <div className="network-page">
     <PageTitle eyebrow="KHÁM PHÁ ĐỒ THỊ" title="Mạng lưới"
       description={view === 'MonHoc'
         ? 'Khám phá các chuỗi tiên quyết. Mũi tên đi từ môn cần học trước đến môn học sau.'
@@ -25,5 +26,5 @@ export default function NetworkPage({ initialCourse, initialStudent }: { initial
       : <Suspense fallback={<Loading text="Đang mở mạng lưới…" />}>
           <NetworkExplorer view={view} onViewChange={setView} />
         </Suspense>}
-  </>;
+  </div>;
 }
