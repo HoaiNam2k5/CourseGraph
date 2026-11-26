@@ -6,7 +6,7 @@ import { api, errorMessage, useAllPages, useResource } from '../api.js';
 import type { BusinessNode, GraphResult, NodeDetail, PathResult, RecommendationResult } from '../types.js';
 import { nodeName } from '../types.js';
 import { assessmentStyle, directCourseRelations, graphPresentation, rawCourseId, rawGraphId } from '../graph-presentation.js';
-import { Empty, ErrorNotice, Loading, PageTitle } from '../components/common.js';
+import { Empty, ErrorNotice, Loading } from '../components/common.js';
 
 const motion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches ? false : { duration: 200, easingFunction: 'easeInOutQuad' as const };
 
@@ -111,10 +111,9 @@ export default function GraphPage({ initialCourse = '', initialStudent = '' }: {
   const pathOutsideCount = activePath?.courses.filter((item) => !graph.data?.nodes.some((node) => rawCourseId(node) === item.id)).length ?? 0;
 
   return <>
-    <PageTitle eyebrow="KHÁM PHÁ ĐỒ THỊ" title="Mạng lưới môn học" description="Chọn môn để đọc điều kiện học và xem chuỗi liên kết. Mũi tên đi từ môn tiên quyết đến môn học sau." />
     <section ref={frame} className={`panel graph-panel graph-explorer${expandedFallback ? ' graph-expanded-fallback' : ''}`} aria-label="Không gian khám phá mạng lưới">
       <div className="graph-toolbar">
-        <label className="field compact"><span>Môn học trung tâm</span><select value={course} onChange={(event) => { setCourse(event.target.value); setSelectedId(event.target.value ? `MonHoc:${event.target.value}` : ''); setActivePath(null); }}><option value="">Toàn bộ mạng lưới</option>{courses.data?.items.map((node) => <option value={node.id} key={node.id}>{node.id} · {nodeName(node)}</option>)}</select></label>
+        <label className="field compact"><span>Môn học trung tâm</span><select value={course} onChange={(event) => { setCourse(event.target.value); setSelectedId(event.target.value ? `MonHoc:${event.target.value}` : ''); setActivePath(null); }}><option value="">Tất cả môn học</option>{courses.data?.items.map((node) => <option value={node.id} key={node.id}>{node.id} · {nodeName(node)}</option>)}</select></label>
         <label className="field compact depth-field"><span>Độ sâu liên kết</span><select value={depth} onChange={(event) => setDepth(event.target.value)}>{[1, 2, 3, 4].map((value) => <option value={value} key={value}>{value} cấp</option>)}</select></label>
         <label className="field compact graph-student-field"><span>Trạng thái theo sinh viên</span><select value={student} onChange={(event) => setStudent(event.target.value)}><option value="">Không áp dụng sinh viên</option>{students.data?.items.map((node) => <option value={node.id} key={node.id}>{node.id} · {nodeName(node)}</option>)}</select></label>
         <label className="checkbox-row"><input type="checkbox" checked={hierarchical} onChange={(event) => setHierarchical(event.target.checked)} />Theo cấp bậc</label>
@@ -150,7 +149,7 @@ export default function GraphPage({ initialCourse = '', initialStudent = '' }: {
       <div className="graph-footer"><span>{graph.data?.nodes.length ?? 0} môn học · {graph.data?.edges.length ?? 0} liên kết{student ? ` · ${student}` : ''}</span><span>Kéo để di chuyển · Cuộn để phóng to{fullscreen ? ' · Escape để thoát' : ''}</span></div>
       {graph.data?.truncated && <div className="notice warning">Mạng lưới đang được giới hạn để dễ quan sát. Thông tin liên kết trong bảng bên cạnh được đọc riêng từ database, không chỉ từ phần đồ thị đang hiển thị.</div>}
     </section>
-    {pathOutsideCount > 0 && <div className="notice warning">Có {pathOutsideCount} môn của đường đi nằm ngoài phần đồ thị hiện tại. Chọn “Toàn bộ mạng lưới” rồi tìm lại để xem đầy đủ đường đi.</div>}
+    {pathOutsideCount > 0 && <div className="notice warning">Có {pathOutsideCount} môn của đường đi nằm ngoài phần đồ thị hiện tại. Chọn “Tất cả môn học” rồi tìm lại để xem đầy đủ đường đi.</div>}
     <PathFinder courses={courses.data?.items ?? []} graphKey={graphKey} ready={Boolean(graph.data) && !graph.loading && !graph.error} onHighlight={highlightPath} />
   </>;
 }

@@ -108,8 +108,9 @@ test('admin creates, edits and deletes a course through the UI', async ({ page }
 
 test('graph and recommendations load from Neo4j', async ({ page }) => {
   await login(page);
-  await page.getByRole('button', { name: 'Mạng lưới môn học', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Mạng lưới môn học', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Mạng lưới', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Mạng lưới', exact: true })).toBeVisible();
+  await expect(page.getByRole('combobox', { name: 'Loại mạng lưới', exact: true })).toHaveValue('MonHoc');
   await page.getByLabel('Môn học trung tâm').selectOption('MH005');
   await expect(page.locator('.graph-canvas canvas')).toBeVisible();
   await page.screenshot({ path: 'evidence/graph.png', fullPage: true });
@@ -118,6 +119,41 @@ test('graph and recommendations load from Neo4j', async ({ page }) => {
   await page.getByRole('button', { name: 'Xem môn có thể học', exact: true }).click();
   await expect(page.getByRole('heading', { name: /môn đủ điều kiện học/ })).toBeVisible();
   await page.screenshot({ path: 'evidence/recommendations.png', fullPage: true });
+});
+
+test('explore all network types and return to the course view on mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await login(page);
+  await page.getByRole('button', { name: 'Mở điều hướng' }).click();
+  await page.getByRole('button', { name: 'Mạng lưới', exact: true }).click();
+  const view = page.getByRole('combobox', { name: 'Loại mạng lưới', exact: true });
+  await expect(view).toHaveValue('MonHoc');
+  await expect(view.locator('option')).toHaveCount(7);
+  await view.selectOption('all');
+  const explorer = page.getByRole('region', { name: 'Khám phá mạng lưới', exact: true });
+  await expect(explorer.locator('canvas')).toBeVisible();
+  await expect(explorer.getByRole('button', { name: /^Xem mạng lưới / })).toHaveCount(6);
+  await explorer.getByRole('button', { name: /^Xem mạng lưới Sinh viên/ }).click();
+  await expect(view).toHaveValue('SinhVien');
+  const search = explorer.getByLabel('Tìm trong mạng lưới', { exact: true });
+  for (const [type, id] of [['SinhVien', 'SV001'], ['GiangVien', 'GV001'], ['Khoa', 'CNTT'], ['HocKy', 'HK001'], ['ChuongTrinhDaoTao', 'CT001']]) {
+    await view.selectOption(type);
+    await search.fill(id);
+    const row = explorer.getByRole('button', { name: /^Xem / }).filter({ hasText: id }).first();
+    await expect(row).toBeVisible();
+    await row.click();
+    await expect(explorer.getByRole('heading', { name: 'Liên kết trực tiếp', exact: true })).toBeVisible();
+    if (id === 'HK001') {
+      const expand = explorer.getByRole('button', { name: /^Mở rộng liên kết/ });
+      const initialLabel = await expand.textContent();
+      await expand.click();
+      await expect(expand).not.toHaveText(initialLabel ?? '');
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  }
+  await view.selectOption('MonHoc');
+  await expect(page.getByRole('combobox', { name: 'Môn học trung tâm' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Tìm và tô đường tiên quyết' })).toBeVisible();
 });
 
 test('quick search matches Vietnamese course names with or without accents', async ({ page }) => {

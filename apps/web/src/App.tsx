@@ -13,10 +13,10 @@ import Transfers from './pages/Transfers.js';
 import Settings from './pages/Settings.js';
 import ConnectionStatus from './components/ConnectionStatus.js';
 
-const Graph = lazy(() => import('./pages/Graph.js'));
-const mainNav = [{ id: 'overview', title: 'Tổng quan', icon: LayoutDashboard }, { id: 'courses', title: 'Môn học', icon: BookOpen }, { id: 'graph', title: 'Mạng lưới môn học', icon: Network }, { id: 'recommendations', title: 'Gợi ý học tập', icon: Sparkles }, { id: 'students', title: 'Sinh viên', icon: GraduationCap }];
+const NetworkPage = lazy(() => import('./pages/NetworkPage.js'));
+const mainNav = [{ id: 'overview', title: 'Tổng quan', icon: LayoutDashboard }, { id: 'courses', title: 'Môn học', icon: BookOpen }, { id: 'graph', title: 'Mạng lưới', icon: Network }, { id: 'recommendations', title: 'Gợi ý học tập', icon: Sparkles }, { id: 'students', title: 'Sinh viên', icon: GraduationCap }];
 const catalogIds = ['relationships', 'programs', 'faculties', 'semesters', 'lecturers'];
-const pageTitles: Record<string, string> = { overview: 'Tổng quan', relationships: 'Liên kết dữ liệu', courses: 'Môn học', graph: 'Mạng lưới môn học', recommendations: 'Gợi ý học tập', students: 'Sinh viên', programs: 'Chương trình đào tạo', faculties: 'Khoa', semesters: 'Học kỳ', lecturers: 'Giảng viên', users: 'Tài khoản & phân quyền', transfers: 'Nhập xuất dữ liệu', settings: 'Đổi mật khẩu' };
+const pageTitles: Record<string, string> = { overview: 'Tổng quan', relationships: 'Liên kết dữ liệu', courses: 'Môn học', graph: 'Mạng lưới', recommendations: 'Gợi ý học tập', students: 'Sinh viên', programs: 'Chương trình đào tạo', faculties: 'Khoa', semesters: 'Học kỳ', lecturers: 'Giảng viên', users: 'Tài khoản & phân quyền', transfers: 'Nhập xuất dữ liệu', settings: 'Đổi mật khẩu' };
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null); const [initializing, setInitializing] = useState(true); const [authMessage, setAuthMessage] = useState('');
@@ -42,7 +42,7 @@ export default function App() {
   const admin = session.user.role === 'ADMIN'; const entity = catalog.data?.entities.find((item) => item.slug === page);
   const renderPage = () => {
     if (page === 'overview') return <Dashboard go={go} />;
-    if (page === 'graph') return <Suspense fallback={<Loading text="Đang mở bản đồ…" />}><Graph initialCourse={graphCourse} initialStudent={graphStudent} /></Suspense>;
+    if (page === 'graph') return <Suspense fallback={<Loading text="Đang mở bản đồ…" />}><NetworkPage initialCourse={graphCourse} initialStudent={graphStudent} /></Suspense>;
     if (page === 'recommendations') return <Recommendations onGraph={openGraph} />;
     if (page === 'users' && admin) return <Users currentUser={session.user} />;
     if (page === 'settings') return <Settings />;

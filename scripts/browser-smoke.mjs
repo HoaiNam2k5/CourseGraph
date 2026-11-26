@@ -86,7 +86,7 @@ try {
     } finally { await page.request.delete(`/api/courses/${id}`, { headers: { Origin: origin, 'x-csrf-token': auth.csrfToken } }); }
   });
   await check('interactive graph and course recommendations', async () => {
-    await page.getByRole('button', { name: 'Mạng lưới môn học', exact: true }).click();
+    await page.getByRole('button', { name: 'Mạng lưới', exact: true }).click();
     await page.getByLabel('Môn học trung tâm').selectOption('MH005');
     await expect(page.locator('.graph-canvas canvas')).toBeVisible();
     await capture('graph');
@@ -115,7 +115,7 @@ try {
     await expect(page.getByLabel('Trạng thái theo sinh viên')).toHaveValue('SV002');
   });
   await check('graph side panel, student status, paths and fullscreen work together', async () => {
-    await page.getByRole('button', { name: 'Mạng lưới môn học', exact: true }).click();
+    await page.getByRole('button', { name: 'Mạng lưới', exact: true }).click();
     await page.getByLabel('Môn học trung tâm').selectOption('MH005');
     await page.getByLabel('Trạng thái theo sinh viên').selectOption('SV001');
     await page.getByLabel('Chọn môn để xem chi tiết').selectOption('MonHoc:MH005');
@@ -232,7 +232,7 @@ try {
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true);
     await capture('mobile');
     await page.getByRole('button', { name: 'Mở điều hướng', exact: true }).click();
-    await page.getByRole('button', { name: 'Mạng lưới môn học', exact: true }).click();
+    await page.getByRole('button', { name: 'Mạng lưới', exact: true }).click();
     await page.getByLabel('Môn học trung tâm').selectOption('MH005');
     await expect(page.getByLabel('Chọn môn để xem chi tiết')).toHaveValue('MonHoc:MH005');
     const stageBox = await page.locator('.graph-stage').boundingBox();
