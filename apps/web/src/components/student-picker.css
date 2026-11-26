@@ -1,0 +1,30 @@
+.student-picker { min-width: 0; }
+
+.student-picker .student-picker-search {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.student-picker-search > svg,
+.student-picker-search > button { flex: none; }
+
+.student-picker-search .icon-button {
+  min-width: 30px;
+  min-height: 30px;
+  margin-inline-end: -5px;
+  padding: 4px;
+}
+
+.student-picker-search input::-webkit-search-cancel-button { display: none; }
+
+.student-picker-no-results {
+  margin: 0 0 7px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.recommendation-form .recommendation-filters { align-items: end; }
+
+@media (max-width: 760px) {
+  .student-picker-search input { font-size: 16px; }
+}

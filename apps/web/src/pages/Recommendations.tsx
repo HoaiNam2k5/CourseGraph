@@ -4,6 +4,7 @@ import { useAllPages, useResource } from '../api.js';
 import type { BusinessNode, CourseAssessment, RecommendationResult } from '../types.js';
 import { nodeName } from '../types.js';
 import { Empty, ErrorNotice, NodeCard, PageTitle, ProgressBar, SkeletonCards } from '../components/common.js';
+import StudentPicker from '../components/StudentPicker.js';
 
 export default function Recommendations({ onGraph }: { onGraph: (id: string, studentId?: string) => void }) {
   const students = useAllPages<BusinessNode>('/students');
@@ -30,8 +31,8 @@ export default function Recommendations({ onGraph }: { onGraph: (id: string, stu
   return <>
     <PageTitle eyebrow="LỘ TRÌNH HỌC TẬP" title="Bước học tiếp theo" description="Biết môn nào có thể học, hiểu vì sao đủ điều kiện và còn cần hoàn thành những gì." />
     <section className="panel recommendation-form"><div className="section-heading"><div><h2>Chọn hồ sơ học tập</h2><p className="muted">Bộ lọc chương trình và học kỳ là tùy chọn.</p></div><Sparkles size={25} /></div>
-      <form onSubmit={submit}><div className="form-grid three">
-        <label className="field"><span>Sinh viên <span className="required">*</span></span><select value={student} required onChange={(event) => setStudent(event.target.value)}><option value="">Chọn sinh viên…</option>{students.data?.items.map((node) => <option value={node.id} key={node.id}>{node.id} · {nodeName(node)}</option>)}</select></label>
+      <form onSubmit={submit}><div className="form-grid three recommendation-filters">
+        <StudentPicker students={students.data?.items ?? []} value={student} onChange={setStudent} required />
         <label className="field"><span>Chương trình đào tạo</span><select value={program} onChange={(event) => setProgram(event.target.value)}><option value="">Không giới hạn chương trình</option>{programs.data?.items.map((node) => <option value={node.id} key={node.id}>{nodeName(node)}</option>)}</select></label>
         <label className="field"><span>Học kỳ mở môn</span><select value={semester} onChange={(event) => setSemester(event.target.value)}><option value="">Tất cả học kỳ</option>{semesters.data?.items.map((node) => <option value={node.id} key={node.id}>{nodeName(node)} · {node.properties.NamHoc}</option>)}</select></label>
       </div>{[students, programs, semesters].some((resource) => resource.error) && <ErrorNotice message="Chưa tải được đầy đủ danh mục." retry={() => { students.reload(); programs.reload(); semesters.reload(); }} />}
