@@ -24,6 +24,7 @@ test('login serves the favicon and supports selecting, moving and resetting the 
   expect(iconFile.headers()['content-type']).toContain('image/svg+xml');
 
   const graph = page.getByRole('figure', { name: 'Sơ đồ dữ liệu mẫu' });
+  await expect(graph).toHaveCSS('border-top-width', '0px');
   const student = graph.getByRole('button', { name: 'Sinh viên', exact: true });
   const position = () => student.evaluate((node) => ({ left: node.style.left, top: node.style.top }));
   const initialPosition = await position();
@@ -35,6 +36,7 @@ test('login serves the favicon and supports selecting, moving and resetting the 
 
   const edge = graph.locator('.login-graph-link').last();
   const beforeDrag = await edge.getAttribute('d');
+  expect(beforeDrag).toMatch(/ Q /);
   const bounds = await student.boundingBox();
   expect(bounds).not.toBeNull();
   const { x, y, width, height } = bounds!;

@@ -72,7 +72,10 @@ function Login({ message, loggedIn }: { message: string; loggedIn: (session: Ses
       <a className="brand" href="#"><ConnectedMark /><span>Course<span className="brand-light">Graph</span><small>MẠNG LƯỚI HỌC TẬP</small></span></a>
       <div className="login-story-content">
         <p className="eyebrow">HIỂU KẾT NỐI. CHỌN ĐÚNG LỘ TRÌNH.</p>
-        <h1>Kiến thức không{' '}<br />đứng một mình.</h1>
+        <h1>
+          <span className="login-headline-line">Kiến thức không</span>{' '}
+          <span className="login-headline-line">đứng một mình.</span>
+        </h1>
         <p>Mỗi môn học mở ra những khả năng mới.<br />Kết nối chúng để nhìn thấy hành trình phía trước.</p>
       </div>
     </section>

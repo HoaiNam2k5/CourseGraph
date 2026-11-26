@@ -18,18 +18,18 @@ type Point = { x: number; y: number };
 type Positions = Record<NodeId, Point>;
 
 const initialPositions: Positions = {
-  prerequisite: { x: 90, y: 61 },
-  course: { x: 218, y: 107 },
-  program: { x: 350, y: 54 },
-  faculty: { x: 105, y: 169 },
-  student: { x: 349, y: 169 },
+  prerequisite: { x: 78, y: 76 },
+  course: { x: 215, y: 113 },
+  program: { x: 329, y: 44 },
+  faculty: { x: 120, y: 176 },
+  student: { x: 365, y: 155 },
 };
 
-const links: readonly { from: NodeId; to: NodeId }[] = [
-  { from: 'prerequisite', to: 'course' },
-  { from: 'program', to: 'course' },
-  { from: 'course', to: 'faculty' },
-  { from: 'student', to: 'course' },
+const links: readonly { from: NodeId; to: NodeId; bend: number }[] = [
+  { from: 'prerequisite', to: 'course', bend: -34 },
+  { from: 'program', to: 'course', bend: 30 },
+  { from: 'course', to: 'faculty', bend: 27 },
+  { from: 'student', to: 'course', bend: 38 },
 ];
 
 const keyboardOffsets: Record<string, Point | undefined> = {
@@ -46,14 +46,26 @@ function withinGraph({ x, y }: Point): Point {
   };
 }
 
-function linkPath(from: Point, to: Point) {
+function edgeOfNode(node: Point, toward: Point): Point {
+  const dx = toward.x - node.x;
+  const dy = toward.y - node.y;
+  const inset = nodeInset / Math.hypot(dx, dy);
+  return { x: node.x + dx * inset, y: node.y + dy * inset };
+}
+
+function linkPath(from: Point, to: Point, bend: number) {
   const dx = to.x - from.x;
   const dy = to.y - from.y;
   const distance = Math.hypot(dx, dy);
   if (distance <= nodeInset * 2) return undefined;
-  const insetX = dx / distance * nodeInset;
-  const insetY = dy / distance * nodeInset;
-  return `M ${from.x + insetX} ${from.y + insetY} L ${to.x - insetX} ${to.y - insetY}`;
+  const curve = bend * Math.min(1, distance / 110) / distance;
+  const control = {
+    x: (from.x + to.x) / 2 - dy * curve,
+    y: (from.y + to.y) / 2 + dx * curve,
+  };
+  const start = edgeOfNode(from, control);
+  const end = edgeOfNode(to, control);
+  return `M ${start.x} ${start.y} Q ${control.x} ${control.y} ${end.x} ${end.y}`;
 }
 
 export default function LoginGraph() {
@@ -132,8 +144,8 @@ export default function LoginGraph() {
           <marker id={`${id}-arrow`} viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="m1 1 6 3-6 3" /></marker>
           <marker id={`${id}-active-arrow`} className="active-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="m1 1 6 3-6 3" /></marker>
         </defs>
-        {links.map(({ from, to }) => {
-          const path = linkPath(positions[from], positions[to]);
+        {links.map(({ from, to, bend }) => {
+          const path = linkPath(positions[from], positions[to], bend);
           if (!path) return null;
           const active = from === selected || to === selected;
           return <g key={from + to} className={active ? 'link-active' : undefined}>
