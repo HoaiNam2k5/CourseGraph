@@ -383,6 +383,8 @@ svg { flex-shrink: 0; vertical-align: middle; }
 .login-story-content > .eyebrow { color: var(--sage); font-size: 11px; }
 .login-story-content h1 { font-size: clamp(42px, 4.3vw, 67px); line-height: 1.15; margin-bottom: 22px; }
 .login-headline-line { display: block; }
+.login-headline-line + .login-headline-line { margin-top: .08em; font-size: .87em; }
+.login-headline-accent { display: inline-block; color: var(--graph-amber); font-size: 1.14em; }
 .login-story-content > p:not(.eyebrow) { color: var(--sidebar-text); font-size: 13px; line-height: 1.9; }
 .login-graph-side { grid-area: graph; min-width: 0; padding: 0 54px 36px; }
 .login-form-side { grid-area: form; padding: 40px 50px 28px; display: flex; flex-direction: column; min-height: 100vh; background: radial-gradient(ellipse at 50% 20%, var(--paper), var(--canvas) 68%); }
@@ -696,6 +698,7 @@ svg { flex-shrink: 0; vertical-align: middle; }
   .success-toast { animation: card-in 250ms var(--ease-out); }
   .login-headline-line { animation: login-headline-in 640ms var(--ease-out) 85ms backwards; }
   .login-headline-line + .login-headline-line { animation-delay: 230ms; }
+  .login-headline-accent { animation: login-headline-float 1.55s ease-in-out .76s 2; }
   .login-story > .brand .connected-mark {
     animation: login-mark-in 620ms var(--ease-out);
     transition: rotate 300ms var(--ease-out), scale 300ms var(--ease-out), filter 300ms ease;
@@ -715,6 +718,10 @@ svg { flex-shrink: 0; vertical-align: middle; }
 @keyframes card-in { from { opacity: .6; translate: 0 8px; } to { opacity: 1; translate: 0 0; } }
 @keyframes modal-in { from { opacity: .66; transform: translateY(8px) scale(.986); } to { opacity: 1; transform: none; } }
 @keyframes login-headline-in { from { opacity: 0; translate: 0 .26em; } to { opacity: 1; translate: 0 0; } }
+@keyframes login-headline-float {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -.12em; }
+}
 @keyframes login-mark-in {
   from { opacity: .3; transform: translateY(-3px) rotate(-17deg) scale(.84); }
   to { opacity: 1; transform: none; }
@@ -757,6 +764,7 @@ svg { flex-shrink: 0; vertical-align: middle; }
   .login-form-side { padding-left: 16px; padding-right: 16px; }
   .login-form-wrap { padding: 23px 19px; }
   .login-form-wrap > h2 { font-size: 28px; }
+  .login-headline-line + .login-headline-line { font-size: clamp(26px, 7.8vw, 35px); }
   .metric-icon { width: 27px; height: 27px; }
   .skeleton-card { min-height: 125px; }
   .login-graph figcaption { min-height: 72px; }

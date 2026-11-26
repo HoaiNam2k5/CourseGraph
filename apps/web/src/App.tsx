@@ -73,8 +73,8 @@ function Login({ message, loggedIn }: { message: string; loggedIn: (session: Ses
       <div className="login-story-content">
         <p className="eyebrow">HIỂU KẾT NỐI. CHỌN ĐÚNG LỘ TRÌNH.</p>
         <h1>
-          <span className="login-headline-line">Kiến thức không</span>{' '}
-          <span className="login-headline-line">đứng một mình.</span>
+          <span className="login-headline-line"><span className="login-headline-accent">Kiến thức</span></span>{' '}
+          <span className="login-headline-line">không đứng một mình.</span>
         </h1>
         <p>Mỗi môn học mở ra những khả năng mới.<br />Kết nối chúng để nhìn thấy hành trình phía trước.</p>
       </div>
