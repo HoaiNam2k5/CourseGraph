@@ -16,6 +16,11 @@ export interface EntityDefinition {
   fields: EntityField[];
 }
 
+export const entityNameKeys: Record<EntityLabel, string> = {
+  MonHoc: 'TenMH', SinhVien: 'HoTen', GiangVien: 'HoTen',
+  Khoa: 'TenKhoa', HocKy: 'TenHK', ChuongTrinhDaoTao: 'TenChuongTrinh',
+};
+
 const field = (key: string, label: string, type: EntityField['type'] = 'string'): EntityField => ({ key, label, type, required: true });
 
 export const entityDefinitions: EntityDefinition[] = [

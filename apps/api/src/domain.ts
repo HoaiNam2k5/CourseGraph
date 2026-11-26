@@ -1,3 +1,4 @@
+import { entityNameKeys } from '../../../packages/shared/src/catalog.js';
 import type { BusinessData, BusinessNode } from '../../../packages/shared/src/data.js';
 import { HttpError } from './errors.js';
 
@@ -46,6 +47,15 @@ export function recommendCourses(data: BusinessData, studentId: string, filters:
     completedCount: completed.size,
     rule: enrolled ? 'DA_HOC được quy ước là hoàn thành đạt; xét toàn bộ tiên quyết trực tiếp và gián tiếp, loại môn đang học.' : 'Sinh viên không theo học chương trình đã chọn.',
     assessments,
+  };
+}
+
+export function businessNetwork(data: BusinessData) {
+  return {
+    nodes: data.nodes.map(({ id, label, properties }) => ({
+      id, label, name: String(properties[entityNameKeys[label]] ?? id),
+    })),
+    relationships: data.relationships,
   };
 }
 

@@ -17,7 +17,7 @@ import { exportBusinessData, importBusinessData } from './db/business.js';
 import { HttpError } from './errors.js';
 import { createEntity, deleteEntity, entityDetail, listEntities, mutateRelationship, replaceRelationship, updateCompletions, updateEntity } from './entities.js';
 import { listRelationships, relationshipQuery } from './relationships.js';
-import { courseNetwork, recommendCourses, shortestCoursePath, statistics } from './domain.js';
+import { businessNetwork, courseNetwork, recommendCourses, shortestCoursePath, statistics } from './domain.js';
 import { createImportPreview, parseCsvImport } from './transfers.js';
 
 const credentialsSchema = z.object({ username: usernameSchema, password: z.string().min(1).max(128) }).strict();
@@ -133,6 +133,9 @@ export function createApp(options: { config?: AppConfig; driver?: Driver } = {})
     response.json({ reset: true });
   });
 
+  api.get('/network', async (_request, response) => {
+    response.json(businessNetwork(await exportBusinessData(driver, config.database)));
+  });
   api.get('/graph', async (request, response) => {
     const query = z.object({ courseId: idSchema.optional(), depth: z.coerce.number().int().min(1).max(6).default(2) }).parse(request.query);
     response.json(courseNetwork(await exportBusinessData(driver, config.database), query.courseId, query.depth));

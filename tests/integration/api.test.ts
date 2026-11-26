@@ -84,6 +84,29 @@ describe('CourseGraph real Neo4j integration', { concurrency: false }, () => {
     assert.deepEqual(detail.body.prerequisites.map((node: BusinessNode) => node.id).sort(), ['A', 'B', 'C']);
   });
 
+  test('the authenticated network includes node identities and directed business edges', async () => {
+    await request(app).get('/api/network').expect(401);
+    await mutate('post', '/api/users', { username: 'reader', password, displayName: 'Reader', role: 'VIEWER' }).expect(201);
+    const reader = await signIn('reader');
+    await mutate('post', '/api/faculties', { properties: { MaKhoa: 'K1', TenKhoa: 'Khoa học' } }).expect(201);
+    await mutate('post', '/api/lecturers', { properties: { MaGV: 'GV1', HoTen: 'Giảng viên', Email: 'gv1@example.com', SDT: '0900000001', HocVi: 'TS' } }).expect(201);
+    const network = await get('/api/network', reader).expect(200);
+    const nodes = network.body.nodes as { id: string; label: BusinessNode['label']; name: string }[];
+    const relationships = network.body.relationships as BusinessData['relationships'];
+
+    assert.equal(nodes.length, fixture.nodes.length + 2);
+    assert.deepEqual(new Set(nodes.map((node) => node.label)), new Set(entityDefinitions.map((entity) => entity.label)));
+    assert.deepEqual(nodes.find((node) => node.label === 'SinhVien' && node.id === 'S1'), {
+      id: 'S1', label: 'SinhVien', name: 'Student S1',
+    });
+    assert.ok(nodes.every((node) => Object.keys(node).sort().join(',') === 'id,label,name'));
+    assert.ok(nodes.some((node) => node.id === 'NEW'));
+    assert.equal(relationships.length, fixture.relationships.length);
+    assert.deepEqual(relationships.find((edge) => edge.type === 'THEO_HOC'), {
+      fromLabel: 'SinhVien', fromId: 'S1', type: 'THEO_HOC', toLabel: 'ChuongTrinhDaoTao', toId: 'P1',
+    });
+  });
+
   test('relationship listing filters valid directions, folds Vietnamese and pages across the full result', async () => {
     await request(app).get('/api/relationships').expect(401);
     await mutate('patch', '/api/courses/D', { properties: { TenMH: 'Đồ thị dữ liệu' } }).expect(200);

@@ -1,6 +1,6 @@
 import neo4j, { type Driver } from 'neo4j-driver';
 import { z } from 'zod';
-import { entityByLabel, relationshipDefinitions, type EntityLabel } from '../../../packages/shared/src/catalog.js';
+import { entityByLabel, entityNameKeys, relationshipDefinitions } from '../../../packages/shared/src/catalog.js';
 import { foldSearchText } from '../../../packages/shared/src/search.js';
 import { readTransaction } from './db/connection.js';
 
@@ -14,17 +14,12 @@ export const relationshipQuery = z.object({
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
 });
 
-const nameKeys: Record<EntityLabel, string> = {
-  MonHoc: 'TenMH', SinhVien: 'HoTen', GiangVien: 'HoTen', Khoa: 'TenKhoa',
-  HocKy: 'TenHK', ChuongTrinhDaoTao: 'TenChuongTrinh',
-};
-
 const rules = relationshipDefinitions.map((rule) => ({
   ...rule,
   fromKey: entityByLabel(rule.from)!.key,
   toKey: entityByLabel(rule.to)!.key,
-  fromNameKey: nameKeys[rule.from],
-  toNameKey: nameKeys[rule.to],
+  fromNameKey: entityNameKeys[rule.from],
+  toNameKey: entityNameKeys[rule.to],
 }));
 
 // The combining marks in decomposed Vietnamese vowels and tones.
