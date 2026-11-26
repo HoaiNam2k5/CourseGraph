@@ -125,6 +125,23 @@ function ExplorerContent({ view, changeGroup, moveFocus, snapshot }: {
   }
 
   const category = networkCategories.find((item) => item.label === view);
+  const showMobileResults = mobile && Boolean(search);
+  const backButton = root && <button className="button secondary small network-back" type="button"
+    onClick={(event) => backToOverview(event.detail === 0)}><ArrowLeft size={16} />Quay lại tổng quan</button>;
+  const recordsList = <>
+    <h2>{search ? 'Kết quả tìm kiếm' : category?.title ?? 'Bản ghi'}</h2>
+    <p className="network-count" aria-live="polite">{formatNumber(matches.length)} bản ghi</p>
+    {matches.length ? <>
+      <ul className="network-records">{matches.slice(0, pageSize).map((record) => <li key={recordKey(record)}>
+        <button type="button" aria-label={`Xem ${record.name} · ${record.id}`} onClick={() => openRecord(recordKey(record))}>
+          <span><strong>{record.name}</strong><small>{record.id}{view === 'all' ? ` · ${networkCategories.find((item) => item.label === record.label)?.title}` : ''}</small></span>
+          <ArrowRight size={15} aria-hidden="true" />
+        </button>
+      </li>)}</ul>
+      {pageSize < matches.length && <button className="button secondary small network-more" type="button"
+        onClick={() => setPageSize((count) => count + listStep)}>Xem thêm bản ghi</button>}
+    </> : <p className="muted">Không tìm thấy bản ghi phù hợp.</p>}
+  </>;
   const recordDetails = focus && <RecordInspector
     key={selected}
     record={focus}
@@ -138,13 +155,17 @@ function ExplorerContent({ view, changeGroup, moveFocus, snapshot }: {
   />;
   return <section className="panel network-explorer" aria-label="Khám phá mạng lưới">
     <header className="network-searchbar">
-      {root && <button className="button secondary small" type="button" onClick={(event) => backToOverview(event.detail === 0)}><ArrowLeft size={16} />Quay lại tổng quan</button>}
       <SearchField inputRef={searchField} label="Tìm trong mạng lưới" value={query}
         onQueryChange={(value) => { setQuery(value); setPageSize(listStep); }} />
     </header>
+    {showMobileResults && <section className="network-inspector network-mobile-results" aria-label="Kết quả tìm kiếm">
+      {recordsList}
+      {backButton}
+    </section>}
     <div className="network-workbench">
       <NetworkCanvas drawing={drawing} selected={selected} onPick={selectOnCanvas} />
-      <aside ref={inspector} className="network-inspector" aria-label="Chi tiết mạng lưới">
+      {!showMobileResults && <aside ref={inspector} className="network-inspector" aria-label="Chi tiết mạng lưới">
+        {backButton}
         {groupsListed ? <>
           <h2>Nhóm dữ liệu</h2>
           <ul className="network-records">{networkCategories.map(({ label, title, color }) => {
@@ -160,20 +181,8 @@ function ExplorerContent({ view, changeGroup, moveFocus, snapshot }: {
         </> : focus ? mobile ? <div className="network-detail-preview">
           <span><strong>{focus.name}</strong><small>{focus.id} · {formatNumber(incidentLinks.length)} liên kết</small></span>
           <button ref={detailTrigger} type="button" className="button secondary small" onClick={() => setDetailsOpen(true)}>Xem chi tiết nút</button>
-        </div> : recordDetails : <>
-          <h2>{search ? 'Kết quả tìm kiếm' : category?.title ?? 'Bản ghi'}</h2>
-          <p className="network-count" aria-live="polite">{formatNumber(matches.length)} bản ghi</p>
-          {matches.length ? <>
-            <ul className="network-records">{matches.slice(0, pageSize).map((record) => <li key={recordKey(record)}>
-              <button type="button" aria-label={`Xem ${record.name} · ${record.id}`} onClick={() => openRecord(recordKey(record))}>
-                <span><strong>{record.name}</strong><small>{record.id}{view === 'all' ? ` · ${networkCategories.find((item) => item.label === record.label)?.title}` : ''}</small></span>
-                <ArrowRight size={15} aria-hidden="true" />
-              </button>
-            </li>)}</ul>
-            {pageSize < matches.length && <button className="button secondary small network-more" type="button" onClick={() => setPageSize((count) => count + listStep)}>Xem thêm bản ghi</button>}
-          </> : <p className="muted">Không tìm thấy bản ghi phù hợp.</p>}
-        </>}
-      </aside>
+        </div> : recordDetails : recordsList}
+      </aside>}
     </div>
     {mobile && detailsOpen && focus && <GraphDetailSheet title="Chi tiết nút" returnFocus={detailTrigger} onClose={() => setDetailsOpen(false)}>
       {recordDetails}

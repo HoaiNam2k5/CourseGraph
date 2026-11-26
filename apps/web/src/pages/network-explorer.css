@@ -1,13 +1,8 @@
 .network-searchbar {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
   padding: 15px 20px;
   border-bottom: 1px solid var(--line);
 }
 
-.network-searchbar .search-field { flex: 1 1 16rem; width: auto; }
 .network-workbench { display: grid; grid-template-columns: minmax(0, 1fr) minmax(15rem, 27%); }
 .network-stage { min-width: 0; height: 480px; }
 
@@ -59,6 +54,7 @@
 .network-incoming { transform: rotate(180deg); }
 .network-swatch { width: 9px; height: 9px; border-radius: 50%; flex: none; }
 .network-more { margin-top: 12px; width: 100%; }
+.network-back { margin-bottom: 12px; }
 .network-expand { margin-bottom: 3px; }
 .network-incident-title { display: flex; gap: 6px; justify-content: space-between; margin: 18px 0 10px; }
 
@@ -92,10 +88,18 @@
   .network-stage, .network-inspector { max-height: 410px; }
 }
 
-@media (max-width: 700px) {
+@media (max-width: 760px) {
   .network-searchbar { padding: 12px; }
   .network-workbench { grid-template-columns: minmax(0, 1fr); }
   .network-stage { height: 310px; }
   .network-inspector { border-left: 0; border-top: 1px solid var(--line); }
+  .network-mobile-results {
+    max-height: min(36vh, 260px);
+    padding: 12px 16px;
+    border-top: 0;
+    border-bottom: 1px solid var(--line);
+    overscroll-behavior-y: contain;
+  }
+  .network-mobile-results .network-back { margin: 12px 0 0; }
   .network-records { padding: 0 3px; }
 }

@@ -176,6 +176,9 @@ test('explore all network types and return to the course view on mobile', async 
   await expect(filters).toHaveAttribute('aria-expanded', 'false');
   await filters.click();
   const studentSearch = page.getByRole('searchbox', { name: 'Tìm sinh viên' });
+  const studentSearchWidth = await studentSearch.locator('xpath=../..').evaluate((field) => field.clientWidth);
+  const filtersWidth = await page.locator('#course-graph-filters').evaluate((panel) => panel.clientWidth);
+  expect(studentSearchWidth).toBeGreaterThan(filtersWidth * 0.95);
   await studentSearch.fill('sv001');
   const student = page.getByRole('combobox', { name: 'Trạng thái theo sinh viên' });
   await expect(student.locator('option')).toHaveCount(2);
@@ -198,9 +201,21 @@ test('explore all network types and return to the course view on mobile', async 
   await expect(view).toHaveValue('SinhVien');
   const search = explorer.getByLabel('Tìm trong mạng lưới', { exact: true });
   await expect(explorer.locator('.search-field')).toHaveCSS('height', '42px');
+  const searchPosition = () => search.evaluate((input) => {
+    const bounds = input.getBoundingClientRect();
+    return { top: Math.round(bounds.top + window.scrollY), left: bounds.left, right: bounds.right };
+  });
   for (const [type, id] of [['SinhVien', 'SV001'], ['GiangVien', 'GV001'], ['Khoa', 'CNTT'], ['HocKy', 'HK001'], ['ChuongTrinhDaoTao', 'CT001']]) {
     await view.selectOption(type);
+    const initialPosition = await searchPosition();
     await search.fill(id);
+    const results = explorer.getByRole('region', { name: 'Kết quả tìm kiếm', exact: true });
+    await expect(results).toBeVisible();
+    const [resultsTop, canvasTop] = await Promise.all([
+      results.evaluate((element) => element.getBoundingClientRect().top),
+      explorer.locator('canvas').evaluate((canvas) => canvas.getBoundingClientRect().top),
+    ]);
+    expect(resultsTop).toBeLessThan(canvasTop);
     const row = explorer.getByRole('button', { name: /^Xem / }).filter({ hasText: id }).first();
     await expect(row).toBeVisible();
     await row.click();
@@ -214,6 +229,8 @@ test('explore all network types and return to the course view on mobile', async 
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await details.getByRole('button', { name: 'Đóng chi tiết nút' }).click();
+    await expect.poll(searchPosition).toEqual(initialPosition);
+    await expect(explorer.getByRole('complementary', { name: 'Chi tiết mạng lưới' }).getByRole('button', { name: 'Quay lại tổng quan' })).toBeVisible();
   }
   await view.selectOption('MonHoc');
   await expect(page.getByRole('combobox', { name: 'Môn học trung tâm' })).toBeVisible();

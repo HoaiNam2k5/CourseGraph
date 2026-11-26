@@ -146,9 +146,9 @@ export default function GraphPage({ initialCourse = '', initialStudent = '' }: {
           <SlidersHorizontal size={16} aria-hidden="true" />Bộ lọc
         </button>
         <div id="course-graph-filters" className={`graph-secondary-filters${showFilters ? ' is-expanded' : ''}`}>
-          <label className="field compact depth-field"><span>Độ sâu liên kết</span><select value={depth} onChange={(event) => setDepth(event.target.value)}>{[1, 2, 3, 4].map((value) => <option value={value} key={value}>{value} cấp</option>)}</select></label>
           <StudentPicker students={students.data?.items ?? []} value={student} onChange={setStudent}
             label="Trạng thái theo sinh viên" placeholder="Không áp dụng sinh viên" />
+          <label className="field compact depth-field"><span>Độ sâu liên kết</span><select value={depth} onChange={(event) => setDepth(event.target.value)}>{[1, 2, 3, 4].map((value) => <option value={value} key={value}>{value} cấp</option>)}</select></label>
           <label className="checkbox-row"><input type="checkbox" checked={hierarchical} onChange={(event) => setHierarchical(event.target.checked)} />Theo cấp bậc</label>
         </div>
         <button className="button secondary small graph-fullscreen-toggle" aria-label={fullscreen ? 'Thoát toàn màn hình đồ thị' : 'Mở toàn màn hình đồ thị'} aria-pressed={fullscreen} onClick={() => { void toggleFullscreen(); }}>{fullscreen ? <Minimize2 size={16} /> : <Expand size={16} />}<span>{fullscreen ? 'Thu gọn' : 'Toàn màn hình'}</span></button>
