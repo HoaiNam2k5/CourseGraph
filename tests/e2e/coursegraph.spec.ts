@@ -147,6 +147,7 @@ test('graph and recommendations load from Neo4j', async ({ page }) => {
   await page.getByRole('button', { name: 'Gợi ý học tập', exact: true }).click();
   const students = page.getByRole('combobox', { name: 'Sinh viên', exact: true });
   const search = page.getByRole('searchbox', { name: 'Tìm sinh viên' });
+  await expect(page.locator('.student-picker .search-field')).toHaveCSS('height', '42px');
   const option = students.locator('option[value="SV001"]');
   await expect(option).toBeAttached();
   const name = (await option.textContent())!.split(' · ').at(-1)!;
@@ -196,6 +197,7 @@ test('explore all network types and return to the course view on mobile', async 
   await explorer.getByRole('button', { name: /^Xem mạng lưới Sinh viên/ }).click();
   await expect(view).toHaveValue('SinhVien');
   const search = explorer.getByLabel('Tìm trong mạng lưới', { exact: true });
+  await expect(explorer.locator('.search-field')).toHaveCSS('height', '42px');
   for (const [type, id] of [['SinhVien', 'SV001'], ['GiangVien', 'GV001'], ['Khoa', 'CNTT'], ['HocKy', 'HK001'], ['ChuongTrinhDaoTao', 'CT001']]) {
     await view.selectOption(type);
     await search.fill(id);
@@ -221,7 +223,9 @@ test('explore all network types and return to the course view on mobile', async 
 test('quick search matches Vietnamese course names with or without accents', async ({ page }) => {
   await login(page);
   await page.getByRole('button', { name: 'Môn học', exact: true }).click();
-  const search = page.getByLabel('Tìm môn học', { exact: true });
+  const search = page.getByRole('searchbox', { name: 'Tìm môn học', exact: true });
+  await expect(page.locator('.catalog-toolbar .search-field')).toHaveCSS('height', '42px');
+  await expect(search).toHaveAttribute('placeholder', 'Tìm theo tên hoặc mã…');
   const results = page.locator('.data-table tbody tr');
   await search.fill('dữ liệu');
   await expect(results).toHaveCount(8);
@@ -229,7 +233,9 @@ test('quick search matches Vietnamese course names with or without accents', asy
   await search.fill('du lieu');
   await expect(results).toHaveCount(8);
   expect(await results.allTextContents()).toEqual(accented);
-  await search.fill('');
+  await page.getByRole('button', { name: 'Xóa từ khóa tìm kiếm', exact: true }).click();
+  await expect(search).toHaveValue('');
+  await expect(search).toBeFocused();
   await page.getByLabel('Sắp xếp danh mục').selectOption('MaMH:desc');
   await expect(results.first()).toContainText('MH050');
   await page.getByRole('button', { name: 'Bộ lọc', exact: true }).click();
@@ -265,7 +271,9 @@ test('manage a directed link from the mobile relationship list', async ({ page }
   try {
     await page.getByRole('button', { name: 'Mở điều hướng' }).click();
     await page.getByRole('button', { name: 'Liên kết dữ liệu', exact: true }).click();
-    await page.getByLabel('Tìm liên kết').fill(courseId);
+    const search = page.getByRole('searchbox', { name: 'Tìm liên kết' });
+    await expect(page.locator('.links-toolbar .search-field')).toHaveCSS('height', '42px');
+    await search.fill(courseId);
     await page.getByRole('combobox', { name: 'Loại liên kết', exact: true }).selectOption('TIEN_QUYET_CHO');
     await page.getByRole('button', { name: 'Thêm liên kết', exact: true }).click();
     const dialog = page.getByRole('dialog');

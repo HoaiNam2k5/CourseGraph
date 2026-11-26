@@ -1,7 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { ArrowLeft, ArrowRight, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Pencil, Plus, Trash2 } from 'lucide-react';
 import { api, errorMessage, useAllPages, useResource } from '../api.js';
 import { Empty, ErrorNotice, Loading, Modal, PageTitle } from '../components/common.js';
+import SearchField from '../components/SearchField.js';
 import { entityTitles, formatNumber, nodeName, type BusinessEdge, type BusinessNode, type Catalog, type PageResult } from '../types.js';
 import './relationships.css';
 
@@ -61,7 +62,7 @@ export default function Relationships({ catalog, admin }: { catalog: Catalog; ad
     {notice && <p role="status" className="notice success">{notice}</p>}
     <section className="panel" aria-label="Danh sách liên kết">
       <div className="links-toolbar">
-        <label className="search-field"><Search size={18} /><input aria-label="Tìm liên kết" placeholder="Tìm theo tên hoặc mã bản ghi…" maxLength={120} value={query} onChange={(event) => setQuery(event.target.value)} /></label>
+        <SearchField label="Tìm liên kết" maxLength={120} value={query} onQueryChange={setQuery} />
         <label className="field"><span>Loại liên kết</span>
           <select value={type} onChange={(event) => { setType(event.target.value); setPage(1); }}>
             <option value="">Tất cả loại</option>

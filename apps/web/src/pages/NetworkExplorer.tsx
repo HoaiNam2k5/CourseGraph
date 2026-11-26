@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowDownRight, ArrowLeft, ArrowRight, Focus, Minus, Network as NetworkIcon, Plus, Search } from 'lucide-react';
+import { ArrowDownRight, ArrowLeft, ArrowRight, Focus, Minus, Network as NetworkIcon, Plus } from 'lucide-react';
 import { Network } from 'vis-network';
 import { foldSearchText } from '../../../../packages/shared/src/search.js';
 import { useResource } from '../api.js';
 import { Empty, ErrorNotice, Loading } from '../components/common.js';
 import { GraphDetailSheet, useMobileGraph } from '../components/GraphDetailSheet.js';
+import SearchField from '../components/SearchField.js';
 import { formatNumber } from '../types.js';
 import {
   drawOverview, drawRecords, indexNetwork, networkCategories, otherEndpoint, recordKey,
@@ -138,10 +139,8 @@ function ExplorerContent({ view, changeGroup, moveFocus, snapshot }: {
   return <section className="panel network-explorer" aria-label="Khám phá mạng lưới">
     <header className="network-searchbar">
       {root && <button className="button secondary small" type="button" onClick={(event) => backToOverview(event.detail === 0)}><ArrowLeft size={16} />Quay lại tổng quan</button>}
-      <label className="search-field">
-        <Search size={17} aria-hidden="true" />
-        <input ref={searchField} type="search" aria-label="Tìm trong mạng lưới" placeholder="Tìm theo mã hoặc tên…" value={query} onChange={(event) => { setQuery(event.target.value); setPageSize(listStep); }} />
-      </label>
+      <SearchField inputRef={searchField} label="Tìm trong mạng lưới" value={query}
+        onQueryChange={(value) => { setQuery(value); setPageSize(listStep); }} />
     </header>
     <div className="network-workbench">
       <NetworkCanvas drawing={drawing} selected={selected} onPick={selectOnCanvas} />

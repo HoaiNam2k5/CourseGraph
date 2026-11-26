@@ -1,7 +1,7 @@
 import { useId, useMemo, useRef, useState } from 'react';
-import { Search, X } from 'lucide-react';
 import { foldSearchText } from '../../../../packages/shared/src/search.js';
 import { formatNumber, nodeName, type BusinessNode } from '../types.js';
+import SearchField from './SearchField.js';
 import './student-picker.css';
 
 interface StudentPickerProps {
@@ -24,7 +24,6 @@ export default function StudentPicker({
   searchable = true,
 }: StudentPickerProps) {
   const [query, setQuery] = useState('');
-  const searchField = useRef<HTMLInputElement>(null);
   const selectField = useRef<HTMLSelectElement>(null);
   const selectId = useId();
   const keywords = searchable ? foldSearchText(query) : '';
@@ -42,19 +41,13 @@ export default function StudentPicker({
 
   return <div className="student-picker">
     {searchable && <>
-      <div className="search-field student-picker-search">
-        <Search size={17} aria-hidden="true" />
-        <input ref={searchField} type="search" value={query} aria-label="Tìm sinh viên" aria-controls={selectId}
-          placeholder="Tìm theo tên hoặc mã…" onChange={(event) => setQuery(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
-              event.preventDefault();
-              selectField.current?.focus();
-            }
-          }} />
-        {query && <button type="button" className="icon-button" aria-label="Xóa từ khóa tìm sinh viên"
-          onClick={() => { setQuery(''); searchField.current?.focus(); }}><X size={15} aria-hidden="true" /></button>}
-      </div>
+      <SearchField className="student-picker-search" label="Tìm sinh viên" aria-controls={selectId} value={query} onQueryChange={setQuery}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
+            event.preventDefault();
+            selectField.current?.focus();
+          }
+        }} />
       <p role="status" className={keywords && !matches.length ? 'student-picker-no-results' : 'sr-only'}>
         {keywords ? matches.length ? `${formatNumber(matches.length)} sinh viên phù hợp` : 'Không tìm thấy sinh viên phù hợp.' : ''}
       </p>

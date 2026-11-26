@@ -107,5 +107,4 @@ html:has(.graph-detail-sheet[open]) { overflow: hidden; }
   .graph-detail-launcher { padding: 8px 12px; border-top: 1px solid var(--line); }
   .graph-detail-launcher button { max-width: 100%; }
   .graph-sheet-content .graph-course-panel { height: auto; overflow: visible; }
-  .network-searchbar .search-field { min-width: 0; }
 }

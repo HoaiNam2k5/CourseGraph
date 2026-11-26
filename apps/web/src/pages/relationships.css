@@ -5,8 +5,8 @@
   gap: 16px;
   padding: 20px;
 }
-.links-toolbar .search-field { width: 100%; min-width: 0; }
 .links-toolbar .field { margin: 0; min-width: 0; }
+.links-toolbar .field select { min-height: 42px; }
 .links-summary {
   padding: 9px 20px;
   background: var(--surface-tint);

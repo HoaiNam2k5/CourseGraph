@@ -1,9 +1,10 @@
 import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
-import { ArrowDownToLine, ArrowLeft, ArrowRight, CheckCircle2, Eye, Pencil, Plus, Search, SlidersHorizontal, Trash2, X } from 'lucide-react';
+import { ArrowDownToLine, ArrowLeft, ArrowRight, CheckCircle2, Eye, Pencil, Plus, SlidersHorizontal, Trash2, X } from 'lucide-react';
 import { api, ApiError, download, errorMessage, useAllPages, useResource } from '../api.js';
 import type { BusinessEdge, BusinessNode, Catalog, Entity, NodeDetail, Relationship } from '../types.js';
 import { formatNumber, nodeName } from '../types.js';
 import { Empty, ErrorNotice, Loading, Modal, NodeCard, PageTitle } from '../components/common.js';
+import SearchField from '../components/SearchField.js';
 
 import { catalogFacetKeys, facetValues, queryCatalog } from '../catalog-search.js';
 import './catalog-search.css';
@@ -45,7 +46,7 @@ export function EntitiesPage({ entity, catalog, admin, onGraph }: { entity: Enti
     {error && <ErrorNotice message={error} />}
     <section className="panel">
       <div className="catalog-toolbar">
-        <label className="search-field"><Search size={18} /><input aria-label={`Tìm ${entity.title.toLocaleLowerCase('vi')}`} placeholder="Tìm theo mã, tên hoặc thuộc tính…" value={query} onChange={event => { setQuery(event.target.value); setPage(1); }} /></label>
+        <SearchField label={`Tìm ${entity.title.toLocaleLowerCase('vi')}`} value={query} onQueryChange={(value) => { setQuery(value); setPage(1); }} />
         <button type="button" className="button small secondary" aria-expanded={showFilters} aria-controls={filterPanelId} onClick={() => setShowFilters(!showFilters)}>
           <SlidersHorizontal size={16} />Bộ lọc{filterCount > 0 && <span className="tag green">{filterCount}</span>}
         </button>
