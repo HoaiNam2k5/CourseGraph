@@ -1,0 +1,55 @@
+.links-toolbar {
+  display: grid;
+  grid-template-columns: minmax(12rem, 1fr) minmax(9rem, 14rem) minmax(8rem, 10rem);
+  align-items: end;
+  gap: 16px;
+  padding: 20px;
+}
+.links-toolbar .search-field { width: 100%; min-width: 0; }
+.links-toolbar .field { margin: 0; min-width: 0; }
+.links-summary {
+  padding: 9px 20px;
+  background: var(--surface-tint);
+  color: var(--muted);
+  border-block: 1px solid var(--line);
+  font-size: 13px;
+}
+.links-list { margin: 0; padding: 0; list-style: none; }
+.links-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(8rem, .68fr) minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 18px;
+  padding: 14px 20px;
+}
+.links-row + .links-row { border-top: 1px solid var(--line); }
+.links-endpoint { min-width: 0; overflow-wrap: anywhere; }
+.links-actions { display: flex; gap: 4px; }
+.links-endpoint strong, .links-endpoint small { display: block; }
+.links-endpoint strong { font-weight: 600; }
+.links-endpoint small { color: var(--muted); margin-top: 2px; }
+.links-kind, .links-confirm-kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--forest-light);
+  font-size: 13px;
+}
+.links-kind svg, .links-confirm-kind svg { flex-shrink: 0; }
+.links-confirm-kind { margin: 10px 0; }
+.links-fields { border: 0; margin: 0; padding: 0; min-width: 0; }
+.links-fields .field:last-of-type { margin-bottom: 0; }
+@media (max-width: 940px) {
+  .links-toolbar { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .links-toolbar .search-field { grid-column: 1 / -1; }
+}
+@media (max-width: 650px) {
+  .links-toolbar { padding: 16px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .links-row { grid-template-columns: minmax(0, 1fr) auto; gap: 5px 12px; padding: 14px 16px; }
+  .links-row .links-endpoint, .links-row .links-kind { grid-column: 1; }
+  .links-kind { flex-direction: row-reverse; justify-self: start; font-size: 12px; }
+  .links-kind svg { transform: rotate(90deg); }
+  .links-actions { grid-row: 1 / 4; grid-column: 2; align-self: center; flex-direction: column; }
+  .links-actions .icon-button { min-width: 40px; min-height: 40px; }
+  .links-summary { padding-inline: 16px; }
+}
