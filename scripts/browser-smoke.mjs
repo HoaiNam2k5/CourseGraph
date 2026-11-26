@@ -112,12 +112,15 @@ try {
     await expect(page.getByRole('heading', { name: /môn đủ điều kiện học/ })).toBeVisible();
     await page.locator('.assessment-card').first().getByRole('button', { name: /trên đồ thị/ }).click();
     await expect(page.locator('.graph-canvas canvas')).toBeVisible();
-    await expect(page.getByLabel('Trạng thái theo sinh viên')).toHaveValue('SV002');
+    await expect(page.getByRole('button', { name: 'Trạng thái theo sinh viên', exact: true })).toContainText('SV002');
   });
   await check('graph side panel, student status, paths and fullscreen work together', async () => {
     await page.getByRole('button', { name: 'Mạng lưới', exact: true }).click();
     await page.getByLabel('Môn học trung tâm').selectOption('MH005');
-    await page.getByLabel('Trạng thái theo sinh viên').selectOption('SV001');
+    await page.getByRole('button', { name: 'Trạng thái theo sinh viên', exact: true }).click();
+    const studentFilter = page.getByRole('dialog', { name: 'Trạng thái theo sinh viên' });
+    await studentFilter.getByRole('combobox', { name: 'Sinh viên', exact: true }).selectOption('SV001');
+    await studentFilter.getByRole('button', { name: 'Áp dụng' }).click();
     await page.getByLabel('Chọn môn để xem chi tiết').selectOption('MonHoc:MH005');
     const panel = page.getByRole('complementary', { name: 'Thông tin môn học đang chọn', exact: true });
     await expect(panel.locator('.graph-course-status')).toBeVisible();

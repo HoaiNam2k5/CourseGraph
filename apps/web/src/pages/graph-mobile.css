@@ -1,8 +1,23 @@
 .network-page .page-actions > .field { min-width: min(210px, 100%); margin: 0; }
 .graph-mobile-control { display: none; }
 .graph-secondary-filters { display: contents; }
-.graph-explorer .graph-secondary-filters .student-picker { flex: 1 1 250px; min-width: 0; }
-.graph-explorer .graph-secondary-filters .student-picker .field { min-width: 0; }
+.graph-explorer .graph-toolbar .graph-student-filter { flex: 1 1 245px; }
+.graph-explorer .graph-toolbar .graph-student-trigger {
+  justify-content: space-between;
+  width: 100%;
+  padding: 7px 11px;
+  font-size: 14px;
+  font-weight: 400;
+}
+.graph-student-trigger span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.graph-student-trigger svg { color: var(--muted); }
+.graph-student-dialog .field { margin-bottom: 0; }
+@media (min-width: 761px) {
+  .graph-explorer .graph-toolbar { align-items: flex-end; }
+  .graph-explorer .graph-toolbar > .field select,
+  .graph-explorer .graph-toolbar :is(.depth-field select, .graph-student-trigger, .graph-fullscreen-toggle, .checkbox-row) { height: 42px; }
+  .graph-explorer .graph-toolbar .checkbox-row { margin: 0; }
+}
 .network-detail-preview { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
 .network-detail-preview > span { min-width: 0; overflow-wrap: anywhere; }
 .network-detail-preview small { display: block; margin-top: 3px; color: var(--muted); }
@@ -98,7 +113,8 @@ html:has(.graph-detail-sheet[open]) { overflow: hidden; }
     border-top: 1px solid var(--line);
   }
   .graph-explorer .graph-secondary-filters:not(.is-expanded) { display: none; }
-  .graph-explorer .graph-secondary-filters .student-picker { grid-column: 1 / -1; }
+  .graph-explorer .graph-secondary-filters .graph-student-filter { grid-column: 1 / -1; }
+  .graph-explorer .graph-toolbar .graph-student-trigger { font-size: 13px; }
   .graph-explorer .graph-secondary-filters .checkbox-row { margin: 0; min-height: 38px; }
   .graph-explorer .graph-workbench > .graph-stage { height: clamp(270px, 42vh, 390px); }
   .graph-explorer:not(:fullscreen):not(.graph-expanded-fallback) .graph-workbench { grid-template-columns: minmax(0, 1fr); }

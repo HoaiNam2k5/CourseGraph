@@ -141,6 +141,22 @@ test('graph and recommendations load from Neo4j', async ({ page }) => {
   await page.getByRole('button', { name: 'Mạng lưới', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Mạng lưới', exact: true })).toBeVisible();
   await expect(page.getByRole('combobox', { name: 'Loại mạng lưới', exact: true })).toHaveValue('MonHoc');
+  const studentFilter = page.getByRole('button', { name: 'Trạng thái theo sinh viên' });
+  const primaryControls = [
+    page.getByRole('combobox', { name: 'Môn học trung tâm' }),
+    page.getByRole('combobox', { name: 'Độ sâu liên kết' }),
+    page.getByRole('button', { name: 'Mở toàn màn hình đồ thị' }),
+    studentFilter,
+  ];
+  const controlBounds = await Promise.all(primaryControls.map((control) => control.boundingBox()));
+  expect(controlBounds.map((box) => Math.round(box!.y))).toEqual(Array(4).fill(Math.round(controlBounds[0]!.y)));
+  await expect(page.getByRole('searchbox', { name: 'Tìm sinh viên' })).toHaveCount(0);
+  await studentFilter.click();
+  const studentDialog = page.getByRole('dialog', { name: 'Trạng thái theo sinh viên' });
+  await studentDialog.getByRole('combobox', { name: 'Sinh viên', exact: true }).selectOption('SV001');
+  await studentDialog.getByRole('button', { name: 'Hủy', exact: true }).click();
+  await expect(studentFilter).toHaveText('Không áp dụng sinh viên');
+  await expect(studentFilter).toBeFocused();
   await page.getByLabel('Môn học trung tâm').selectOption('MH005');
   await expect(page.locator('.graph-canvas canvas')).toBeVisible();
   await page.screenshot({ path: 'evidence/graph.png', fullPage: true });
@@ -175,14 +191,17 @@ test('explore all network types and return to the course view on mobile', async 
   const filters = page.getByRole('button', { name: 'Bộ lọc', exact: true });
   await expect(filters).toHaveAttribute('aria-expanded', 'false');
   await filters.click();
-  const studentSearch = page.getByRole('searchbox', { name: 'Tìm sinh viên' });
-  const studentSearchWidth = await studentSearch.locator('xpath=../..').evaluate((field) => field.clientWidth);
-  const filtersWidth = await page.locator('#course-graph-filters').evaluate((panel) => panel.clientWidth);
-  expect(studentSearchWidth).toBeGreaterThan(filtersWidth * 0.95);
+  const studentFilter = page.getByRole('button', { name: 'Trạng thái theo sinh viên' });
+  await studentFilter.click();
+  const studentDialog = page.getByRole('dialog', { name: 'Trạng thái theo sinh viên' });
+  const studentSearch = studentDialog.getByRole('searchbox', { name: 'Tìm sinh viên' });
+  await expect(studentSearch).toHaveAttribute('placeholder', 'Tìm tên hoặc mã sinh viên…');
   await studentSearch.fill('sv001');
-  const student = page.getByRole('combobox', { name: 'Trạng thái theo sinh viên' });
+  const student = studentDialog.getByRole('combobox', { name: 'Sinh viên', exact: true });
   await expect(student.locator('option')).toHaveCount(2);
   await student.selectOption('SV001');
+  await studentDialog.getByRole('button', { name: 'Áp dụng' }).click();
+  await expect(studentFilter).toContainText('SV001');
   await filters.click();
   const detailTrigger = page.getByRole('button', { name: 'Xem chi tiết môn học' });
   await detailTrigger.click();
