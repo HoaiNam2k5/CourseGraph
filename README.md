@@ -1,18 +1,56 @@
-# CourseGraph — mạng lưới môn học và điều kiện tiên quyết
+<img src="apps/web/public/favicon.svg" alt="" width="56" height="56">
 
-Ứng dụng đồ án NoSQL bằng React/TypeScript, Express và Neo4j.
+# CourseGraph
 
-## Triển khai bản demo
+**Ứng dụng quản lý môn học và khám phá quan hệ tiên quyết bằng Neo4j.**
 
-Repo có [Render Blueprint](render.yaml) cho một Docker Web Service gói Free. Khi kết nối Blueprint, nhập bốn biến kết nối từ Neo4j Aura đã nạp dữ liệu demo. Render tạo khóa phiên và ứng dụng dùng URL HTTPS do Render cấp. Xem [cấu hình Aura và Render](docs/setup.md#6-chuẩn-bị-chạy-với-neo4j-aura-và-render).
+CourseGraph là đồ án NoSQL mô hình hóa dữ liệu đào tạo dưới dạng đồ thị. Ứng dụng giúp người dùng tra cứu danh mục, xem chuỗi môn tiên quyết và kiểm tra một sinh viên đã đáp ứng điều kiện để học môn nào.
 
-## Chạy trên máy Windows
+[Mở bản demo](https://coursegraph-rmls.onrender.com/) · [Cài đặt](docs/setup.md) · [Mô hình dữ liệu](database/schema.md) · [Tài liệu API](docs/api.md)
 
-Yêu cầu Node.js 24 LTS, Neo4j Desktop có distribution Neo4j 2026.09.0 và Java21 trong cache. Không cần server riêng. Neo4j cũ được giữ nguyên; môi trường ứng dụng dùng HTTP17474/Bolt17687 và database `coursegraph`.
+Bản demo chạy trên Render và sử dụng Neo4j AuraDB. Đăng nhập bằng tài khoản được cấp để khám phá dữ liệu mẫu.
 
-Các lệnh nạp dữ liệu và kiểm thử dựa trên dữ liệu nguồn cần thư mục `CSV/` từ bộ đồ án trên máy cá nhân. Repo công khai chỉ chứa mã nguồn và tài liệu kỹ thuật.
+## Tính năng
+
+| Tính năng | Thao tác trên ứng dụng |
+| --- | --- |
+| **Tra cứu dữ liệu đào tạo** | Tìm kiếm và xem chi tiết môn học, sinh viên, giảng viên, khoa, học kỳ và chương trình đào tạo. |
+| **Khám phá đồ thị** | Mở mạng lưới theo môn học hoặc sinh viên, xem chi tiết từng nút và tìm đường đi ngắn nhất giữa hai môn. |
+| **Gợi ý môn học** | Xem môn đủ hoặc chưa đủ điều kiện dựa trên các môn tiên quyết trực tiếp và gián tiếp. Có thể lọc theo chương trình đào tạo và học kỳ. |
+| **Quản trị dữ liệu** | Thêm, sửa, xóa bản ghi và quan hệ. Hệ thống kiểm tra và từ chối cạnh tạo chu trình tiên quyết. |
+| **Nhập và xuất dữ liệu** | Xem trước khi xác nhận nhập JSON hoặc bộ bảy tệp CSV. Xuất toàn bộ dữ liệu nghiệp vụ dưới dạng JSON hoặc xuất từng danh mục và quan hệ dưới dạng CSV. |
+
+`VIEWER` có quyền tra cứu. `ADMIN` có thêm quyền chỉnh sửa dữ liệu, nhập/xuất tệp và quản lý tài khoản.
+
+## Mô hình dữ liệu
+
+Bộ dữ liệu nghiệp vụ sau chuẩn hóa có **210 nút** thuộc **6 loại thực thể** và **1.568 quan hệ** thuộc **12 loại**.
+
+`(MonHoc A)-[:TIEN_QUYET_CHO]->(MonHoc B)` nghĩa là sinh viên cần hoàn thành môn A trước khi học môn B. Các truy vấn Cypher mẫu bao gồm thống kê, tìm chuỗi tiên quyết và tra cứu dữ liệu đào tạo. [Schema](database/schema.md) · [Truy vấn mẫu](database/queries)
+
+## Kiến trúc
+
+```mermaid
+flowchart LR
+    Web["Trình duyệt · React, TypeScript, vis-network"] -->|"/api"| API["Express · xác thực, API, tệp giao diện"]
+    API -->|"Neo4j Driver · Cypher"| DB[("Neo4j")]
+```
+
+| Thư mục | Nội dung |
+| --- | --- |
+| [`apps/web/`](apps/web) | Giao diện React và đồ thị tương tác, build bằng Vite. |
+| [`apps/api/`](apps/api) | API Express, xác thực và nghiệp vụ đồ thị. |
+| [`packages/shared/`](packages/shared) | Định nghĩa danh mục và logic xử lý dữ liệu dùng chung. |
+| [`database/`](database) | Schema, ràng buộc và truy vấn Cypher. |
+| [`scripts/`](scripts) · [`infra/`](infra) | Công cụ nhập liệu, vận hành local và cấu hình container. |
+
+## Chạy trên Windows
+
+**Chuẩn bị** Node.js 24, PowerShell và Neo4j Desktop có sẵn Neo4j `2026.09.0` cùng Java 21 trong cache. Để nạp đủ dữ liệu, đặt bộ bảy tệp CSV của đồ án vào thư mục `CSV/` ở gốc repo. Bộ CSV gốc được giữ bên ngoài repo công khai.
 
 ```powershell
+git clone https://github.com/HoaiNam2k5/CourseGraph.git
+cd CourseGraph
 npm ci
 npm run setup:env
 powershell -ExecutionPolicy Bypass -File scripts/setup-neo4j.ps1 -Start
@@ -25,46 +63,24 @@ npm run build
 powershell -ExecutionPolicy Bypass -File scripts/start-local.ps1 -Background
 ```
 
-Mở http://127.0.0.1:3000. Username lấy từ `ADMIN_USERNAME`, mật khẩu từ `ADMIN_PASSWORD` trong `.env` trên máy của anh. Script seed không đổi mật khẩu của user đã tồn tại. Nếu port đã có app chạy, dùng `scripts/stop-local.ps1` trước khi khởi động lại.
+Mở [CourseGraph trên máy](http://127.0.0.1:3000/) và đăng nhập bằng `ADMIN_USERNAME` và `ADMIN_PASSWORD` trong `.env`. Script tạo tài khoản giữ nguyên mật khẩu nếu tài khoản đã tồn tại. Neo4j local dùng database `coursegraph`, cổng HTTP `17474` và cổng Bolt `17687`. [Hướng dẫn cài đặt và xử lý lỗi](docs/setup.md)
 
-Nếu cache Neo4j/Java nằm nơi khác, truyền `-Distribution` và `-JavaHome` cho `setup-neo4j.ps1`. Runtime mới chỉ dành cho phát triển local theo entitlement Neo4j Desktop đã cài; không đem bản Enterprise Developer này lên server production.
+## Kiểm thử
 
-## Kiểm tra
+| Lệnh | Phạm vi |
+| --- | --- |
+| `npm run typecheck` và `npm run lint` | Kiểm tra kiểu TypeScript và quy tắc mã nguồn. |
+| `npm test` | Kiểm thử đơn vị. |
+| `npm run test:integration` | Kiểm thử API với Neo4j trên database riêng `coursegraph-test`. |
+| `npm run queries:verify` | Kiểm chứng truy vấn Cypher trên dữ liệu đã nạp. |
+| `npm run test:e2e` | Kiểm thử luồng người dùng trên trình duyệt bằng Playwright. |
 
-```powershell
-npm run typecheck
-npm run lint
-npm test
-npm run test:integration
-npm run queries:verify
-npm run test:e2e
-npm audit --audit-level=high
-```
+## Triển khai và demo
 
-Integration test chỉ dùng `coursegraph-test` trên instance riêng, không xóa dữ liệu `coursegraph` hay instance cũ. Các CLI mặc định compile bằng TypeScript rồi chạy JavaScript; không cần esbuild/tsx để chạy import hoặc test unit/integration.
+[Bản cấu hình Render](render.yaml) chạy React và Express trong một Docker Web Service, kết nối với Neo4j AuraDB. Quy trình triển khai gồm chuẩn bị dữ liệu demo, tạo tài khoản quản trị và cấu hình biến môi trường trên Render. Endpoint `/api/health/ready` kiểm tra kết nối tới database. [Hướng dẫn triển khai](docs/setup.md#6-chuẩn-bị-chạy-với-neo4j-aura-và-render)
 
-## Dữ liệu
+Giữ tệp `.env`, CSV gốc và bản sao lưu chứa dữ liệu nội bộ bên ngoài Git.
 
-- Kiểm tra CSV trong bộ đồ án bằng `npm run data:audit`.
-- Sau chuẩn hóa: **210 node nghiệp vụ, 1.568 quan hệ**, 6 label, 12 type/14 chiều quan hệ.
-- Loại 10 dòng học kỳ và 800 dòng quan hệ trùng; giữ 78 cảnh báo lịch sử thiếu tiên quyết.
-- `DA_HOC` được quy ước hoàn thành đạt cho demo; không suy ra điểm. `DANG_KY` là SinhVien → HocKy.
-- Gợi ý môn yêu cầu hoàn thành tất cả tiên quyết trực tiếp và gián tiếp, loại môn đã hoàn thành/đang học; có bộ lọc chương trình và học kỳ.
-- Schema và truy vấn mẫu nằm trong `database/`. Các lệnh xử lý dữ liệu ghi bản chuẩn hóa và kết quả kiểm tra vào `data/normalized/` và `evidence/` trên máy cá nhân.
-
-## Vận hành
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/backup-local.ps1
-powershell -ExecutionPolicy Bypass -File scripts/restore-local.ps1 -BackupPath backups/coursegraph-YYYYMMDD-HHMMSS
-```
-
-Restore mặc định chỉ ghi `coursegraph-restore`, kiểm tra hash với manifest, tạo `.local/restored.env` với JWT secret mới. Database chính không bị overwrite. Dump chỉ chạy trên database đã stop; app được ghi PID phải được dừng trước snapshot để tránh lệch dữ liệu.
-
-Đọc [hướng dẫn cài đặt](docs/setup.md), [vận hành](docs/operations.md), [API](docs/api.md), [kịch bản demo](docs/demo.md) và [demo bằng Bloom](docs/bloom-demo.md).
-
-Cài đặt tự động ban đầu trên máy có cache Desktop tương thích: `powershell -ExecutionPolicy Bypass -File scripts/bootstrap.ps1`. Dùng script này cho môi trường ban đầu; sau khi đã có dữ liệu tùy chỉnh, chỉ start app thay vì nhập lại baseline.
-
-Trong môi trường chặn Playwright worker subprocess, có thể khởi chạy Chrome headless với profile riêng và CDP loopback19222, đặt `COURSEGRAPH_CDP_URL=http://127.0.0.1:19222`, rồi chạy `npm run test:e2e`. Script dùng Playwright CDP trên database/app E2E riêng, có8luồng kiểm tra. Môi trường thông thường chạy bộ Playwright runner tại tests/e2e.
-
-Không đưa `.env`, `.local`, backup chứa tài khoản hoặc log nhạy cảm vào Git, Docker image hay gói source công khai.
+- [Kịch bản demo đồ án](docs/demo.md)
+- [Hướng dẫn khám phá dữ liệu với Neo4j Bloom](docs/bloom-demo.md)
+- [Vận hành, sao lưu và khôi phục](docs/operations.md)
