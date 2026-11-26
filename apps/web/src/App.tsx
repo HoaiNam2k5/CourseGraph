@@ -8,14 +8,15 @@ import Dashboard from './pages/Dashboard.js';
 import { EntitiesPage } from './pages/Entities.js';
 import Recommendations from './pages/Recommendations.js';
 import Users from './pages/Users.js';
+import Relationships from './pages/Relationships.js';
 import Transfers from './pages/Transfers.js';
 import Settings from './pages/Settings.js';
 import ConnectionStatus from './components/ConnectionStatus.js';
 
 const Graph = lazy(() => import('./pages/Graph.js'));
 const mainNav = [{ id: 'overview', title: 'Tổng quan', icon: LayoutDashboard }, { id: 'courses', title: 'Môn học', icon: BookOpen }, { id: 'graph', title: 'Mạng lưới môn học', icon: Network }, { id: 'recommendations', title: 'Gợi ý học tập', icon: Sparkles }, { id: 'students', title: 'Sinh viên', icon: GraduationCap }];
-const catalogIds = ['programs', 'faculties', 'semesters', 'lecturers'];
-const pageTitles: Record<string, string> = { overview: 'Tổng quan', courses: 'Môn học', graph: 'Mạng lưới môn học', recommendations: 'Gợi ý học tập', students: 'Sinh viên', programs: 'Chương trình đào tạo', faculties: 'Khoa', semesters: 'Học kỳ', lecturers: 'Giảng viên', users: 'Tài khoản & phân quyền', transfers: 'Nhập xuất dữ liệu', settings: 'Đổi mật khẩu' };
+const catalogIds = ['relationships', 'programs', 'faculties', 'semesters', 'lecturers'];
+const pageTitles: Record<string, string> = { overview: 'Tổng quan', relationships: 'Liên kết dữ liệu', courses: 'Môn học', graph: 'Mạng lưới môn học', recommendations: 'Gợi ý học tập', students: 'Sinh viên', programs: 'Chương trình đào tạo', faculties: 'Khoa', semesters: 'Học kỳ', lecturers: 'Giảng viên', users: 'Tài khoản & phân quyền', transfers: 'Nhập xuất dữ liệu', settings: 'Đổi mật khẩu' };
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null); const [initializing, setInitializing] = useState(true); const [authMessage, setAuthMessage] = useState('');
@@ -47,6 +48,7 @@ export default function App() {
     if (page === 'settings') return <Settings />;
     if (catalog.loading) return <Loading text="Đang lấy danh mục…" />;
     if (catalog.error) return <ErrorNotice message={catalog.error} retry={catalog.reload} />;
+    if (page === 'relationships' && catalog.data) return <Relationships catalog={catalog.data} admin={admin} />;
     if (page === 'transfers' && admin && catalog.data) return <Transfers catalog={catalog.data} />;
     if (entity && catalog.data) return <EntitiesPage key={entity.slug} entity={entity} catalog={catalog.data} admin={admin} onGraph={openGraph} />;
     return <section className="panel unavailable"><h1>Không tìm thấy trang</h1><p>Trang không tồn tại hoặc tài khoản chưa có quyền truy cập.</p><button className="button primary" onClick={() => go('overview')}>Về tổng quan</button></section>;

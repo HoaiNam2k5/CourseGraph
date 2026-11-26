@@ -120,6 +120,29 @@ test('graph and recommendations load from Neo4j', async ({ page }) => {
   await page.screenshot({ path: 'evidence/recommendations.png', fullPage: true });
 });
 
+test('quick search matches Vietnamese course names with or without accents', async ({ page }) => {
+  await login(page);
+  await page.getByRole('button', { name: 'Môn học', exact: true }).click();
+  const search = page.getByLabel('Tìm môn học', { exact: true });
+  const results = page.locator('.data-table tbody tr');
+  await search.fill('dữ liệu');
+  await expect(results).toHaveCount(8);
+  const accented = await results.allTextContents();
+  await search.fill('du lieu');
+  await expect(results).toHaveCount(8);
+  expect(await results.allTextContents()).toEqual(accented);
+  await search.fill('');
+  await page.getByLabel('Sắp xếp danh mục').selectOption('MaMH:desc');
+  await expect(results.first()).toContainText('MH050');
+  await page.getByRole('button', { name: 'Bộ lọc', exact: true }).click();
+  await page.getByRole('combobox', { name: 'Số tín chỉ', exact: true }).selectOption('3');
+  await expect(results.first()).toBeVisible();
+  await expect.poll(async () => {
+    const credits = await results.locator('.credit-pill').allTextContents();
+    return credits.length > 0 && credits.every(credit => credit === '3');
+  }).toBe(true);
+});
+
 test('mobile navigation and keyboard skip link remain usable', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await login(page);
@@ -129,6 +152,43 @@ test('mobile navigation and keyboard skip link remain usable', async ({ page }) 
   await expect(page.getByRole('button', { name: 'Mở điều hướng' })).toBeVisible();
   await page.screenshot({ path: 'evidence/mobile.png', fullPage: true });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
+test('manage a directed link from the mobile relationship list', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await login(page);
+  const courseId = `E2ELINK${Date.now()}`;
+  const session = await (await page.request.get('/api/auth/me')).json();
+  const headers = { Origin: origin, 'x-csrf-token': session.csrfToken as string };
+  const fixture = await page.request.post('/api/courses', {
+    headers, data: { properties: { MaMH: courseId, TenMH: 'Môn thử liên kết', SoTC: 3, LoaiMon: 'Tự Chọn' } },
+  });
+  expect(fixture.status()).toBe(201);
+  try {
+    await page.getByRole('button', { name: 'Mở điều hướng' }).click();
+    await page.getByRole('button', { name: 'Liên kết dữ liệu', exact: true }).click();
+    await page.getByLabel('Tìm liên kết').fill(courseId);
+    await page.getByRole('combobox', { name: 'Loại liên kết', exact: true }).selectOption('TIEN_QUYET_CHO');
+    await page.getByRole('button', { name: 'Thêm liên kết', exact: true }).click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByRole('combobox', { name: /^Nguồn/ }).selectOption(courseId);
+    await dialog.getByRole('combobox', { name: /^Đích/ }).selectOption('MH001');
+    await dialog.getByRole('button', { name: 'Thêm liên kết', exact: true }).click();
+    const oldLabel = `${courseId} TIEN_QUYET_CHO MH001`;
+    await page.getByRole('button', { name: 'Sửa liên kết ' + oldLabel, exact: true }).click();
+    await dialog.getByRole('combobox', { name: /^Đích/ }).selectOption('MH002');
+    await dialog.getByRole('button', { name: /Lưu/ }).click();
+    const remove = page.getByRole('button', { name: `Xóa liên kết ${courseId} TIEN_QUYET_CHO MH002`, exact: true });
+    await expect(remove).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await remove.click();
+    await dialog.getByRole('button', { name: 'Xóa liên kết', exact: true }).click();
+    await expect(remove).toHaveCount(0);
+    const listed = await page.request.get('/api/relationships?q=' + courseId);
+    expect((await listed.json()).total).toBe(0);
+  } finally {
+    await page.request.delete('/api/courses/' + courseId + '?force=true', { headers });
+  }
 });
 
 test('admin previews and imports the original seven CSV files without duplicates', async ({ page }) => {
