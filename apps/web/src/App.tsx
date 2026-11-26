@@ -82,7 +82,6 @@ function Login({ message, loggedIn }: { message: string; loggedIn: (session: Ses
     <section className="login-form-side" aria-labelledby="login-title">
       <div className="login-form-wrap">
         <h2 id="login-title">Chào mừng trở lại.</h2>
-        <p className="login-intro">Đăng nhập để khám phá mạng lưới học tập.</p>
         {message && <div className="notice info" role="status">{message}</div>}
         <form onSubmit={(event) => { void submit(event); }}>
           <label className="field"><span>Tên đăng nhập</span><input autoComplete="username" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="Nhập tên đăng nhập" required autoFocus /></label>
@@ -91,9 +90,8 @@ function Login({ message, loggedIn }: { message: string; loggedIn: (session: Ses
           {error && <ErrorNotice message={error} />}
           <button className="button primary login-submit" type="submit" disabled={busy}>{busy ? 'Đang đăng nhập…' : 'Vào không gian học tập'}<ArrowRight size={18} /></button>
         </form>
-        <p className="login-help">Sử dụng tài khoản do quản trị viên cấp. Nếu chưa có tài khoản, liên hệ người quản trị hệ thống.</p>
       </div>
-      <div className="login-form-footer"><span>CourseGraph / 2026</span><span>Dữ liệu kết nối. Lựa chọn sáng rõ.</span></div>
+      <div className="login-form-footer">CourseGraph / 2026</div>
     </section>
     <div className="login-graph-side"><LoginGraph /></div>
   </main>;

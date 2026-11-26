@@ -134,7 +134,7 @@ export default function LoginGraph() {
     <header className="login-graph-header">
       <div>
         <h2 id={`${id}-title`}>Sơ đồ dữ liệu mẫu</h2>
-        <p id={`${id}-hint`}>Chọn hoặc kéo nút. Dùng phím mũi tên để di chuyển.</p>
+        <p id={`${id}-hint`} className="sr-only">Chọn hoặc kéo nút. Dùng phím mũi tên để di chuyển.</p>
       </div>
       <button className="icon-button" type="button" onClick={reset} aria-label="Đặt lại sơ đồ" title="Đặt lại sơ đồ"><RotateCcw size={17} aria-hidden="true" /></button>
     </header>
