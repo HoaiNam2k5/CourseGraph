@@ -41,8 +41,10 @@ Entity slugs: `courses`, `students`, `lecturers`, `faculties`, `semesters`, `pro
 
 ## Quan hệ và học tập
 
+- `GET /relationships` trả danh sách liên kết có hướng cho tài khoản đã đăng nhập. Mỗi phần tử gồm năm trường của `BusinessEdge` cùng `fromName` và `toName`. Dùng `q` để tìm theo mã, tên hoặc loại liên kết, `type` để lọc, `sort=from|to|type` và `order=asc|desc` để sắp xếp. Kết quả được phân trang bằng `page` và `pageSize`.
 - `POST /prerequisites`, `DELETE /prerequisites`: `{ fromId, toId }` (môn nguồn là tiên quyết cho môn đích).
 - `POST /relationships`, `DELETE /relationships`: BusinessEdge theo whitelist catalog.
+- `PATCH /relationships` nhận `{ previous, next }` với hai cạnh theo cùng định dạng. Chỉ quản trị viên được sửa. Nếu cạnh mới trùng, thiếu đầu mút hoặc tạo chu trình tiên quyết, giao dịch giữ lại cạnh cũ.
 - Tự trỏ/trùng/chu trình bị chặn. API quan hệ tổng quát không bỏ qua kiểm tra tiên quyết. Mọi thao tác ghi mạng lưới lấy cùng khóa trong database trước kiểm tra và ghi, kể cả import, nên hai request đối nghịch đồng thời không cùng thành công.
 - `PUT /students/:id/completions`: `{ courseIds: [...] }`, thay danh sách DA_HOC và bỏ DANG_HOC ở các môn mới hoàn thành; không tạo môn thiếu hoặc tự xóa lịch sử dựa vào giả định.
 - `GET /courses/:id/prerequisites`, `/dependents` → `{ items }`.

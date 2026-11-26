@@ -85,31 +85,53 @@ export async function deleteEntity(driver: Driver, database: string, definition:
   });
 }
 
-export async function mutateRelationship(driver: Driver, database: string, input: { fromLabel: string; fromId: string; type: string; toLabel: string; toId: string }, remove = false) {
+type RelationshipInput = { fromLabel: string; fromId: string; type: string; toLabel: string; toId: string };
+
+async function writeRelationship(tx: ManagedTransaction, input: RelationshipInput, action: 'create' | 'delete' | 'verify') {
   const definition = relationshipDefinitions.find((item) => item.from === input.fromLabel && item.type === input.type && item.to === input.toLabel);
   if (!definition) throw new HttpError(400, 'Loại, nhãn hoặc hướng liên kết không được phép.');
   const from = entityByLabel(definition.from)!;
   const to = entityByLabel(definition.to)!;
+  if (!await findNode(tx, from, input.fromId) || !await findNode(tx, to, input.toId)) throw new HttpError(404, 'Không tìm thấy node nguồn hoặc đích.');
+  const match = `MATCH (a:${from.label} {${from.key}:$fromId}),(b:${to.label} {${to.key}:$toId})`;
+  const parameters = { fromId: input.fromId, toId: input.toId };
+  const existing = await tx.run(`${match} RETURN EXISTS { MATCH (a)-[:${definition.type}]->(b) } AS exists`, parameters);
+  const exists = Boolean(existing.records[0].get('exists'));
+  if (action !== 'create') {
+    if (!exists) throw new HttpError(404, 'Liên kết không tồn tại.');
+    if (action === 'verify') return { exists: true };
+    await tx.run(`${match} MATCH (a)-[r:${definition.type}]->(b) DELETE r`, parameters);
+    return { deleted: true };
+  }
+  if (exists) throw new HttpError(409, 'Liên kết đã tồn tại.');
+  if (definition.type === 'TIEN_QUYET_CHO') {
+    if (input.fromId === input.toId) throw new HttpError(409, 'Môn học không thể là tiên quyết của chính nó.');
+    const cycle = await tx.run(`${match} RETURN EXISTS { MATCH (b)-[:TIEN_QUYET_CHO*1..]->(a) } AS cycle`, parameters);
+    if (cycle.records[0].get('cycle')) throw new HttpError(409, 'Liên kết này tạo chu trình tiên quyết.');
+  }
+  await tx.run(`${match} CREATE (a)-[:${definition.type}]->(b)`, parameters);
+  return { created: true };
+}
+
+export function mutateRelationship(driver: Driver, database: string, input: RelationshipInput, remove = false) {
   return writeTransaction(driver, database, async (tx) => {
     await graphWriteLock(tx);
-    if (!await findNode(tx, from, input.fromId) || !await findNode(tx, to, input.toId)) throw new HttpError(404, 'Không tìm thấy node nguồn hoặc đích.');
-    const match = `MATCH (a:${from.label} {${from.key}:$fromId}),(b:${to.label} {${to.key}:$toId})`;
-    const parameters = { fromId: input.fromId, toId: input.toId };
-    const existing = await tx.run(`${match} RETURN EXISTS { MATCH (a)-[:${definition.type}]->(b) } AS exists`, parameters);
-    const exists = Boolean(existing.records[0].get('exists'));
-    if (remove) {
-      if (!exists) throw new HttpError(404, 'Liên kết không tồn tại.');
-      await tx.run(`${match} MATCH (a)-[r:${definition.type}]->(b) DELETE r`, parameters);
-      return { deleted: true };
+    return writeRelationship(tx, input, remove ? 'delete' : 'create');
+  });
+}
+
+export function replaceRelationship(driver: Driver, database: string, previous: RelationshipInput, next: RelationshipInput) {
+  return writeTransaction(driver, database, async (tx) => {
+    await graphWriteLock(tx);
+    const unchanged = previous.type === next.type && previous.fromLabel === next.fromLabel
+      && previous.fromId === next.fromId && previous.toLabel === next.toLabel && previous.toId === next.toId;
+    if (unchanged) {
+      await writeRelationship(tx, previous, 'verify');
+    } else {
+      await writeRelationship(tx, previous, 'delete');
+      await writeRelationship(tx, next, 'create');
     }
-    if (exists) throw new HttpError(409, 'Liên kết đã tồn tại.');
-    if (definition.type === 'TIEN_QUYET_CHO') {
-      if (input.fromId === input.toId) throw new HttpError(409, 'Môn học không thể là tiên quyết của chính nó.');
-      const cycle = await tx.run(`${match} RETURN EXISTS { MATCH (b)-[:TIEN_QUYET_CHO*1..]->(a) } AS cycle`, parameters);
-      if (cycle.records[0].get('cycle')) throw new HttpError(409, 'Liên kết này tạo chu trình tiên quyết.');
-    }
-    await tx.run(`${match} CREATE (a)-[:${definition.type}]->(b)`, parameters);
-    return { created: true };
+    return { updated: !unchanged };
   });
 }
 

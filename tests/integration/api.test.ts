@@ -152,6 +152,17 @@ describe('CourseGraph real Neo4j integration', { concurrency: false }, () => {
     assert.equal(data.relationships.some((edge) => edge.fromId === 'A' || edge.toId === 'A'), false);
   });
 
+  test('editing a link keeps the original on failure and updates both endpoints atomically', async () => {
+    const previous = fixture.relationships[0];
+    const next = { ...previous, fromId: 'ROOT', toId: 'A' };
+    await mutate('patch', '/api/relationships', { previous, next: fixture.relationships[1] }).expect(409);
+    await mutate('patch', '/api/relationships', { previous, next: previous }).expect(200, { updated: false });
+    await mutate('patch', '/api/relationships', { previous, next }).expect(200, { updated: true });
+    await mutate('patch', '/api/relationships', { previous, next }).expect(404);
+    const detail = await get('/api/courses/ROOT').expect(200);
+    assert.ok(detail.body.links.some((edge: typeof next) => edge.type === next.type && edge.toId === 'A'));
+  });
+
   test('concurrent opposite prerequisite writes serialize so only one succeeds', async () => {
     for (const id of ['X', 'Y']) await mutate('post', '/api/courses', { properties: course(id).properties }).expect(201);
     const results = await Promise.all([

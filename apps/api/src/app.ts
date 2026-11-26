@@ -15,7 +15,7 @@ import { authenticate, assertOrigin, clearSession, cookieName, hashPassword, log
 import { authWriteLock, createDriver, plain, readTransaction, writeTransaction } from './db/connection.js';
 import { exportBusinessData, importBusinessData } from './db/business.js';
 import { HttpError } from './errors.js';
-import { createEntity, deleteEntity, entityDetail, listEntities, mutateRelationship, updateCompletions, updateEntity } from './entities.js';
+import { createEntity, deleteEntity, entityDetail, listEntities, mutateRelationship, replaceRelationship, updateCompletions, updateEntity } from './entities.js';
 import { courseNetwork, recommendCourses, shortestCoursePath, statistics } from './domain.js';
 import { createImportPreview, parseCsvImport } from './transfers.js';
 
@@ -163,6 +163,11 @@ export function createApp(options: { config?: AppConfig; driver?: Driver } = {})
       response.status(method === 'post' ? 201 : 200).json(await mutateRelationship(driver, config.database, input, method === 'delete'));
     });
   }
+
+  api.patch('/relationships', requireAdmin, async (request, response) => {
+    const { previous, next } = z.object({ previous: relationSchema, next: relationSchema }).strict().parse(request.body);
+    response.json(await replaceRelationship(driver, config.database, previous, next));
+  });
 
   api.post('/imports/preview', requireAdmin, async (request, response) => {
     const body = z.object({ data: z.unknown() }).strict().parse(request.body);
