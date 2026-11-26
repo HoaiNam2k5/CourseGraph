@@ -84,6 +84,32 @@ describe('CourseGraph real Neo4j integration', { concurrency: false }, () => {
     assert.deepEqual(detail.body.prerequisites.map((node: BusinessNode) => node.id).sort(), ['A', 'B', 'C']);
   });
 
+  test('relationship listing filters valid directions, folds Vietnamese and pages across the full result', async () => {
+    await request(app).get('/api/relationships').expect(401);
+    await mutate('patch', '/api/courses/D', { properties: { TenMH: 'Đồ thị dữ liệu' } }).expect(200);
+    await writeTransaction(driver, config.database, async (tx) => {
+      await tx.run("MATCH (s:SinhVien {MaSV:'S1'}), (m:MonHoc {MaMH:'A'}) CREATE (m)-[:DA_HOC]->(s)");
+    });
+    await mutate('post', '/api/users', { username: 'reader', password, displayName: 'Reader', role: 'VIEWER' }).expect(201);
+    const reader = await signIn('reader');
+    const list = await get('/api/relationships', reader).expect(200);
+    assert.equal(list.body.total, fixture.relationships.length);
+    const results = await get('/api/relationships?type=TIEN_QUYET_CHO&q=do%20thi%20du%20lieu&sort=from&order=desc&pageSize=1', reader).expect(200);
+    assert.equal(results.body.total, 2);
+    assert.deepEqual(results.body.items, [{
+      fromLabel: 'MonHoc', fromId: 'C', fromName: 'Course C', type: 'TIEN_QUYET_CHO',
+      toLabel: 'MonHoc', toId: 'D', toName: 'Đồ thị dữ liệu',
+    }]);
+    const byTitle = await get('/api/relationships?q=tien%20quyet%20cho&sort=from&order=desc&page=2&pageSize=1', reader).expect(200);
+    assert.equal(byTitle.body.total, 3);
+    assert.equal(byTitle.body.items[0].fromId, 'B');
+    const empty = await get('/api/relationships?q=absent&page=2&pageSize=1', reader).expect(200);
+    assert.deepEqual(empty.body, { items: [], page: 2, pageSize: 1, total: 0 });
+    await get('/api/relationships?sort=invalid', reader).expect(400);
+    await get('/api/relationships?type=UNKNOWN', reader).expect(400);
+    await mutate('delete', '/api/relationships', fixture.relationships[0], reader).expect(403);
+  });
+
   test('all six entity types support CRUD and validate immutable keys and dates', async () => {
     for (const definition of entityDefinitions) {
       const id = `TEST_${definition.label}`;

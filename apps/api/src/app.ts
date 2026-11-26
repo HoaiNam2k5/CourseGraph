@@ -16,6 +16,7 @@ import { authWriteLock, createDriver, plain, readTransaction, writeTransaction }
 import { exportBusinessData, importBusinessData } from './db/business.js';
 import { HttpError } from './errors.js';
 import { createEntity, deleteEntity, entityDetail, listEntities, mutateRelationship, replaceRelationship, updateCompletions, updateEntity } from './entities.js';
+import { listRelationships, relationshipQuery } from './relationships.js';
 import { courseNetwork, recommendCourses, shortestCoursePath, statistics } from './domain.js';
 import { createImportPreview, parseCsvImport } from './transfers.js';
 
@@ -153,6 +154,10 @@ export function createApp(options: { config?: AppConfig; driver?: Driver } = {})
   });
   api.get('/courses/:id/prerequisites', async (request, response) => { const detail = await entityDetail(driver, config.database, entityBySlug('courses')!, idSchema.parse(request.params.id)); response.json({ items: detail.prerequisites }); });
   api.get('/courses/:id/dependents', async (request, response) => { const detail = await entityDetail(driver, config.database, entityBySlug('courses')!, idSchema.parse(request.params.id)); response.json({ items: detail.dependents }); });
+  api.get('/relationships', async (request, response) => {
+    const query = relationshipQuery.parse(request.query);
+    response.json(await listRelationships(driver, config.database, query));
+  });
   for (const method of ['post', 'delete'] as const) {
     api[method]('/prerequisites', requireAdmin, async (request, response) => {
       const input = z.object({ fromId: idSchema, toId: idSchema }).strict().parse(request.body);
