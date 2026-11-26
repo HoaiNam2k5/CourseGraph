@@ -119,7 +119,8 @@ try {
     await page.getByLabel('Môn học trung tâm').selectOption('MH005');
     await page.getByRole('button', { name: 'Trạng thái theo sinh viên', exact: true }).click();
     const studentFilter = page.getByRole('dialog', { name: 'Trạng thái theo sinh viên' });
-    await studentFilter.getByRole('combobox', { name: 'Sinh viên', exact: true }).selectOption('SV001');
+    await studentFilter.getByRole('searchbox', { name: 'Tìm sinh viên' }).fill('SV001');
+    await studentFilter.getByRole('radio', { name: /\bSV001\b/ }).check();
     await studentFilter.getByRole('button', { name: 'Áp dụng' }).click();
     await page.getByLabel('Chọn môn để xem chi tiết').selectOption('MonHoc:MH005');
     const panel = page.getByRole('complementary', { name: 'Thông tin môn học đang chọn', exact: true });

@@ -5,13 +5,43 @@
 .graph-explorer .graph-toolbar .graph-student-trigger {
   justify-content: space-between;
   width: 100%;
+  min-width: 0;
   padding: 7px 11px;
   font-size: 14px;
   font-weight: 400;
+  text-align: start;
 }
-.graph-student-trigger span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.graph-student-trigger svg { color: var(--muted); }
-.graph-student-dialog .field { margin-bottom: 0; }
+.graph-student-trigger > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.graph-student-trigger > svg { color: var(--muted); }
+.graph-student-trigger[aria-expanded="true"] > svg { transform: rotate(180deg); }
+.graph-student-dialog { padding-bottom: 0; }
+.graph-student-result-count, .graph-student-current { margin: 8px 0; color: var(--muted); overflow-wrap: anywhere; }
+.graph-student-options {
+  min-inline-size: 0;
+  max-height: min(42dvh, 300px);
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+}
+.graph-student-options:not(:has(.graph-student-choice)) { border: 0; }
+.graph-student-choice {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 44px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+.graph-student-choice + .graph-student-choice { border-top: 1px solid var(--line); }
+.graph-student-choice:hover { background: var(--surface-tint); }
+.graph-student-choice:has(input:checked) { background: var(--forest-soft); }
+.graph-student-choice:focus-within { outline: 2px solid var(--forest); outline-offset: -2px; }
+.graph-student-choice input { flex: none; margin: 0; accent-color: var(--forest); }
+.graph-student-choice > span { min-width: 0; overflow-wrap: anywhere; }
+.graph-student-choice small { display: block; color: var(--muted); font-size: 12px; }
 @media (min-width: 761px) {
   .graph-explorer .graph-toolbar { align-items: flex-end; }
   .graph-explorer .graph-toolbar > .field select,
@@ -114,7 +144,7 @@ html:has(.graph-detail-sheet[open]) { overflow: hidden; }
   }
   .graph-explorer .graph-secondary-filters:not(.is-expanded) { display: none; }
   .graph-explorer .graph-secondary-filters .graph-student-filter { grid-column: 1 / -1; }
-  .graph-explorer .graph-toolbar .graph-student-trigger { font-size: 13px; }
+  .graph-explorer .graph-toolbar .graph-student-trigger { min-height: 42px; }
   .graph-explorer .graph-secondary-filters .checkbox-row { margin: 0; min-height: 38px; }
   .graph-explorer .graph-workbench > .graph-stage { height: clamp(270px, 42vh, 390px); }
   .graph-explorer:not(:fullscreen):not(.graph-expanded-fallback) .graph-workbench { grid-template-columns: minmax(0, 1fr); }

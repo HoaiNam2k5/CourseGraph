@@ -10,7 +10,6 @@ interface StudentPickerProps {
   onChange: (id: string) => void;
   label?: string;
   placeholder?: string;
-  searchPlaceholder?: string;
   required?: boolean;
   searchable?: boolean;
 }
@@ -21,7 +20,6 @@ export default function StudentPicker({
   onChange,
   label = 'Sinh viên',
   placeholder = 'Chọn sinh viên…',
-  searchPlaceholder,
   required = false,
   searchable = true,
 }: StudentPickerProps) {
@@ -43,7 +41,7 @@ export default function StudentPicker({
 
   return <div className="student-picker">
     {searchable && <>
-      <SearchField className="student-picker-search" label="Tìm sinh viên" placeholder={searchPlaceholder}
+      <SearchField className="student-picker-search" label="Tìm sinh viên"
         aria-controls={selectId} value={query} onQueryChange={setQuery}
         onKeyDown={(event) => {
           if (event.key === 'Enter' && !event.nativeEvent.isComposing) {

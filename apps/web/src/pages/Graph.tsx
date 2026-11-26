@@ -1,14 +1,14 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { DataSet } from 'vis-data';
 import { Network, type Edge, type Node } from 'vis-network';
-import { ArrowRight, ChevronDown, Expand, Maximize2, Minimize2, Minus, Plus, Route, SlidersHorizontal, X } from 'lucide-react';
+import { ArrowRight, Expand, Maximize2, Minimize2, Minus, Plus, Route, SlidersHorizontal, X } from 'lucide-react';
 import { api, errorMessage, useAllPages, useResource } from '../api.js';
 import type { BusinessNode, GraphResult, NodeDetail, PathResult, RecommendationResult } from '../types.js';
 import { nodeName } from '../types.js';
 import { assessmentStyle, directCourseRelations, graphPresentation, rawCourseId, rawGraphId } from '../graph-presentation.js';
-import { Empty, ErrorNotice, Loading, Modal } from '../components/common.js';
+import { Empty, ErrorNotice, Loading } from '../components/common.js';
 import { GraphDetailSheet, isMobileGraph, useMobileGraph } from '../components/GraphDetailSheet.js';
-import StudentPicker from '../components/StudentPicker.js';
+import GraphStudentFilter from '../components/GraphStudentFilter.js';
 
 const motion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches ? false : { duration: 200, easingFunction: 'easeInOutQuad' as const };
 
@@ -177,45 +177,6 @@ export default function GraphPage({ initialCourse = '', initialStudent = '' }: {
     {pathOutsideCount > 0 && <div className="notice warning">Có {pathOutsideCount} môn của đường đi nằm ngoài phần đồ thị hiện tại. Chọn “Tất cả môn học” rồi tìm lại để xem đầy đủ đường đi.</div>}
     <PathFinder courses={courses.data?.items ?? []} graphKey={graphKey} ready={Boolean(graph.data) && !graph.loading && !graph.error} onHighlight={highlightPath} />
   </>;
-}
-
-function GraphStudentFilter({ students, value, onApply }: {
-  students: BusinessNode[];
-  value: string;
-  onApply: (student: string) => void;
-}) {
-  const [draft, setDraft] = useState<string | null>(null);
-  const trigger = useRef<HTMLButtonElement>(null);
-  const selectionId = useId();
-  const student = students.find((item) => item.id === value);
-  const selection = student ? `${student.id} · ${nodeName(student)}` : value || 'Không áp dụng sinh viên';
-
-  function close() {
-    setDraft(null);
-    requestAnimationFrame(() => trigger.current?.focus({ preventScroll: true }));
-  }
-
-  return <div className="field graph-student-filter">
-    <span>Trạng thái theo sinh viên</span>
-    <button ref={trigger} type="button" className="button secondary graph-student-trigger"
-      aria-haspopup="dialog" aria-label="Trạng thái theo sinh viên" aria-describedby={selectionId}
-      onClick={() => setDraft(value)}>
-      <span id={selectionId}>{selection}</span>
-      <ChevronDown size={16} aria-hidden="true" />
-    </button>
-    {draft !== null && <Modal title="Trạng thái theo sinh viên" close={close}>
-      <form onSubmit={(event) => { event.preventDefault(); onApply(draft); close(); }}>
-        <div className="modal-body graph-student-dialog">
-          <StudentPicker students={students} value={draft} onChange={setDraft}
-            searchPlaceholder="Tìm tên hoặc mã sinh viên…" placeholder="Không áp dụng sinh viên" />
-        </div>
-        <div className="modal-actions">
-          <button type="button" className="button secondary" onClick={close}>Hủy</button>
-          <button type="submit" className="button primary">Áp dụng</button>
-        </div>
-      </form>
-    </Modal>}
-  </div>;
 }
 
 function useStudentAssessment(studentId: string) {
