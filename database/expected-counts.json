@@ -1,0 +1,29 @@
+{
+  "source": "CSV normalized business data; excludes AppUser and application metadata",
+  "nodes": 210,
+  "relationships": 1568,
+  "nodesByLabel": {
+    "MonHoc": 50,
+    "SinhVien": 100,
+    "GiangVien": 30,
+    "Khoa": 10,
+    "HocKy": 10,
+    "ChuongTrinhDaoTao": 10
+  },
+  "relationshipsByType": {
+    "BAO_GOM": 50,
+    "DANG_HOC": 82,
+    "DANG_KY": 560,
+    "DA_HOC": 356,
+    "GIANG_DAY": 50,
+    "GIANG_DAY_TRONG": 60,
+    "MO_DANG_KY": 50,
+    "PHU_TRACH": 30,
+    "QUAN_LY": 10,
+    "THEO_HOC": 100,
+    "THUOC_KHOA": 180,
+    "TIEN_QUYET_CHO": 40
+  },
+  "canonicalHash": "a85bad1eadff3889b893e29a394abd6def27a1f22d048456445542a582de0d08",
+  "historicalPrerequisiteWarnings": 78
+}

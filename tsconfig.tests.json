@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.api.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "outDir": ".local/test-build",
+    "sourceMap": false
+  },
+  "include": ["apps/api/src/**/*.ts", "packages/**/*.ts", "tests/unit/**/*.ts", "tests/integration/**/*.ts"],
+  "exclude": ["node_modules", "dist", "apps/web", ".local"]
+}

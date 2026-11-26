@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: coursegraph
+    runtime: docker
+    plan: free
+    region: singapore
+    branch: main
+    dockerfilePath: ./infra/Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health/ready
+    envVars:
+      - key: NEO4J_URI
+        sync: false
+      - key: NEO4J_USERNAME
+        sync: false
+      - key: NEO4J_PASSWORD
+        sync: false
+      - key: NEO4J_DATABASE
+        sync: false
+      - key: NEO4J_DEPLOYMENT
+        value: remote
+      - key: JWT_SECRET
+        generateValue: true
+      - key: COOKIE_SECURE
+        value: "true"

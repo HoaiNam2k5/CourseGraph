@@ -1,0 +1,26 @@
+name: coursegraph
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile
+    image: coursegraph:1.0.0
+    init: true
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: '3000'
+      APP_ORIGIN: http://127.0.0.1:8080
+      NEO4J_URI: bolt://host.docker.internal:17687
+    ports:
+      - '127.0.0.1:8080:3000'
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777

@@ -1,0 +1,10 @@
+import { useState, type FormEvent } from 'react';
+import { KeyRound } from 'lucide-react';
+import { api, errorMessage } from '../api.js';
+import { ErrorNotice, PageTitle } from '../components/common.js';
+
+export default function Settings() {
+  const [currentPassword, setCurrentPassword] = useState(''); const [newPassword, setNewPassword] = useState(''); const [confirmation, setConfirmation] = useState(''); const [error, setError] = useState(''); const [busy, setBusy] = useState(false);
+  async function submit(event: FormEvent) { event.preventDefault(); setError(''); if (newPassword !== confirmation) { setError('Hai lần nhập mật khẩu mới chưa khớp.'); return; } setBusy(true); try { await api('/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) }); window.dispatchEvent(new Event('coursegraph:unauthorized')); } catch (cause) { setError(errorMessage(cause)); } finally { setBusy(false); } }
+  return <><PageTitle eyebrow="TÀI KHOẢN CỦA BẠN" title="Đổi mật khẩu" description="Sau khi đổi mật khẩu, đăng nhập lại để bắt đầu một phiên mới." /><section className="panel password-panel"><KeyRound size={25} /><form onSubmit={(event) => { void submit(event); }}><label className="field"><span>Mật khẩu hiện tại</span><input type="password" value={currentPassword} required autoComplete="current-password" onChange={(event) => setCurrentPassword(event.target.value)} /></label><label className="field"><span>Mật khẩu mới</span><input type="password" value={newPassword} required minLength={12} maxLength={128} autoComplete="new-password" onChange={(event) => setNewPassword(event.target.value)} /><small>Tối thiểu 12 ký tự.</small></label><label className="field"><span>Nhập lại mật khẩu mới</span><input type="password" value={confirmation} required minLength={12} maxLength={128} autoComplete="new-password" onChange={(event) => setConfirmation(event.target.value)} /></label>{error && <ErrorNotice message={error} />}<button className="button primary" type="submit" disabled={busy}>{busy ? 'Đang cập nhật…' : 'Cập nhật mật khẩu'}</button></form></section></>;
+}

@@ -1,0 +1,16 @@
+import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { AlertCircle, ArrowRight, LoaderCircle, RefreshCw, X } from 'lucide-react';
+import type { BusinessNode } from '../types.js';
+import { nodeName } from '../types.js';
+
+export function Loading({ text = 'Đang lấy dữ liệu…' }: { text?: string }) { return <div className="state-box" role="status"><LoaderCircle size={22} className="spin" /><span>{text}</span></div>; }
+export function ErrorNotice({ message, retry }: { message: string; retry?: () => void }) { return <div className="notice error" role="alert"><AlertCircle size={18} /><span>{message}</span>{retry && <button className="button small ghost" onClick={retry}><RefreshCw size={15} />Thử lại</button>}</div>; }
+export function Empty({ title = 'Chưa có dữ liệu', description = 'Thử thay đổi điều kiện tìm kiếm hoặc thêm dữ liệu mới.' }: { title?: string; description?: string }) { return <div className="state-box empty"><div className="empty-mark">∅</div><h3>{title}</h3><p>{description}</p></div>; }
+export function PageTitle({ eyebrow, title, description, actions }: { eyebrow: string; title: string; description: string; actions?: ReactNode }) { return <div className="page-title"><div><p className="eyebrow">{eyebrow}</p><h1>{title}</h1><p className="page-description">{description}</p></div>{actions && <div className="page-actions">{actions}</div>}</div>; }
+export function Modal({ title, children, close, wide = false }: { title: string; children: ReactNode; close: () => void; wide?: boolean }) {
+  const ref = useRef<HTMLDialogElement>(null); const titleId = useId();
+  useEffect(() => { const dialog = ref.current; if (dialog && !dialog.open) dialog.showModal(); return () => { dialog?.close(); }; }, []);
+  return <dialog ref={ref} className={`modal${wide ? ' wide' : ''}`} aria-labelledby={titleId} onCancel={(event) => { event.preventDefault(); close(); }} onClick={(event) => { if (event.target === ref.current) close(); }}><div className="modal-header"><h2 id={titleId}>{title}</h2><button className="icon-button" onClick={close} aria-label="Đóng hộp thoại"><X size={20} /></button></div>{children}</dialog>;
+}
+export function NodeCard({ node, action }: { node: BusinessNode; action?: () => void }) { return <div className="node-card"><span className="node-code">{node.id.replace(/^MonHoc:/, '')}</span><div><strong>{nodeName(node)}</strong>{node.properties.SoTC !== undefined && <small>{node.properties.SoTC} tín chỉ · {node.properties.LoaiMon}</small>}</div>{action && <button className="icon-button" aria-label={`Xem ${nodeName(node)}`} onClick={action}><ArrowRight size={17} /></button>}</div>; }
+export function ConnectedMark({ large = false }: { large?: boolean }) { return <svg className={`connected-mark${large ? ' large' : ''}`} viewBox="0 0 100 100" fill="none" aria-hidden="true"><path d="M20 29L49 13L79 36L67 75L26 83L20 29ZM20 29L67 75M49 13L26 83M79 36L26 83" stroke="currentColor" strokeWidth="1.5" /><circle cx="20" cy="29" r="7" fill="currentColor" /><circle cx="49" cy="13" r="5" fill="currentColor" /><circle cx="79" cy="36" r="9" fill="currentColor" /><circle cx="67" cy="75" r="6" fill="currentColor" /><circle cx="26" cy="83" r="5" fill="currentColor" /></svg>; }

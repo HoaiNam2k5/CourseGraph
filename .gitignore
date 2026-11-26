@@ -1,0 +1,25 @@
+node_modules/
+dist/
+apps/web/dist/
+.env
+.env.*
+!.env.example
+.local/
+backups/
+logs/
+playwright-report/
+test-results/
+.gitnexus/
+*.tsbuildinfo
+
+# Local project data and submission artifacts
+/CSV/
+/data/
+/deliverables/
+/evidence/
+/*.docx
+/*.pdf
+/*.dump
+/PLANS.md
+/findings.md
+/progress.md

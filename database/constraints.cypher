@@ -1,0 +1,9 @@
+// Apply once per isolated application/test database; never clear an existing database.
+CREATE CONSTRAINT monhoc_key IF NOT EXISTS FOR (n:MonHoc) REQUIRE n.MaMH IS UNIQUE;
+CREATE CONSTRAINT sinhvien_key IF NOT EXISTS FOR (n:SinhVien) REQUIRE n.MaSV IS UNIQUE;
+CREATE CONSTRAINT giangvien_key IF NOT EXISTS FOR (n:GiangVien) REQUIRE n.MaGV IS UNIQUE;
+CREATE CONSTRAINT khoa_key IF NOT EXISTS FOR (n:Khoa) REQUIRE n.MaKhoa IS UNIQUE;
+CREATE CONSTRAINT hocky_key IF NOT EXISTS FOR (n:HocKy) REQUIRE n.MaHK IS UNIQUE;
+CREATE CONSTRAINT chuongtrinh_key IF NOT EXISTS FOR (n:ChuongTrinhDaoTao) REQUIRE n.MaChuongTrinh IS UNIQUE;
+CREATE CONSTRAINT appuser_username IF NOT EXISTS FOR (n:AppUser) REQUIRE n.username IS UNIQUE;
+CREATE CONSTRAINT appmeta_key IF NOT EXISTS FOR (n:AppMeta) REQUIRE n.key IS UNIQUE;

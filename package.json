@@ -1,0 +1,70 @@
+{
+  "name": "coursegraph-nosql",
+  "version": "1.0.0",
+  "private": true,
+  "overrides": {
+    "image-size": "2.1.0"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=24 <27"
+  },
+  "scripts": {
+    "dev:api": "tsx watch apps/api/src/server.ts",
+    "dev:web": "vite --config apps/web/vite.config.ts",
+    "compile": "tsc -p tsconfig.api.json",
+    "setup:env": "npm run compile --silent && node dist/scripts/init-env.js",
+    "build": "npm run compile && vite build --config apps/web/vite.config.ts",
+    "start": "node --env-file=.env dist/apps/api/src/server.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "tsc -p tsconfig.tests.json && node --test --test-isolation=none .local/test-build/tests/unit/*.test.js",
+    "test:integration": "tsc -p tsconfig.tests.json && node --test --test-isolation=none --test-concurrency=1 .local/test-build/tests/integration/*.test.js",
+    "test:e2e": "powershell -ExecutionPolicy Bypass -File scripts/test-e2e.ps1",
+    "data:audit": "npm run compile --silent && node dist/scripts/audit-data.js",
+    "data:normalize": "npm run compile --silent && node dist/scripts/normalize-data.js",
+    "data:import": "npm run compile --silent && node dist/scripts/import-data.js",
+    "data:verify": "npm run compile --silent && node dist/scripts/verify-data.js",
+    "admin:create": "npm run compile --silent && node dist/scripts/create-admin.js",
+    "queries:verify": "npm run compile --silent && node dist/scripts/verify-queries.js"
+  },
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "csv-parse": "7.0.3",
+    "csv-stringify": "^6.6.0",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.2.1",
+    "helmet": "^8.1.0",
+    "jose": "^6.1.0",
+    "lucide-react": "^0.468.0",
+    "neo4j-driver": "^6.0.1",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "vis-data": "^8.0.3",
+    "vis-network": "^10.0.2",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@playwright/test": "^1.56.1",
+    "@types/cookie-parser": "^1.4.9",
+    "@types/express": "^5.0.5",
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.5",
+    "@types/react-dom": "^19.2.3",
+    "@types/supertest": "^6.0.3",
+    "@vitejs/plugin-react": "^5.1.1",
+    "docx": "^9.16.0",
+    "eslint": "^9.39.1",
+    "globals": "^16.5.0",
+    "jszip": "^3.10.2",
+    "pptxgenjs": "^4.0.1",
+    "sharp": "^0.35.5",
+    "supertest": "^7.1.4",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.46.4",
+    "vite": "^7.2.2"
+  }
+}
