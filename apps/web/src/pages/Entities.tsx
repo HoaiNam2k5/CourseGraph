@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
-import { ArrowDownToLine, ArrowLeft, ArrowRight, Eye, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { ArrowDownToLine, ArrowLeft, ArrowRight, CheckCircle2, Eye, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
 import { api, ApiError, download, errorMessage, useAllPages, useResource } from '../api.js';
 import type { BusinessEdge, BusinessNode, Catalog, Entity, NodeDetail, PageResult, Relationship } from '../types.js';
 import { formatNumber, nodeName } from '../types.js';
@@ -8,16 +8,25 @@ import { Empty, ErrorNotice, Loading, Modal, NodeCard, PageTitle } from '../comp
 export function EntitiesPage({ entity, catalog, admin, onGraph }: { entity: Entity; catalog: Catalog; admin: boolean; onGraph: (courseId: string) => void }) {
   const [query, setQuery] = useState(''); const [debounced, setDebounced] = useState(''); const [page, setPage] = useState(1);
   const [form, setForm] = useState<BusinessNode | 'new' | null>(null); const [selected, setSelected] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState<BusinessNode | null>(null); const [notice, setNotice] = useState(''); const [error, setError] = useState('');
+  const [deleting, setDeleting] = useState<BusinessNode | null>(null); const [notice, setNotice] = useState<{ message: string } | null>(null); const [error, setError] = useState('');
   useEffect(() => { const timeout = window.setTimeout(() => { setDebounced(query); setPage(1); }, 250); return () => clearTimeout(timeout); }, [query]);
-  useEffect(() => { setQuery(''); setDebounced(''); setPage(1); setSelected(null); setNotice(''); }, [entity.slug]);
+  useEffect(() => { setQuery(''); setDebounced(''); setPage(1); setSelected(null); setNotice(null); }, [entity.slug]);
+  useEffect(() => {
+    if (!notice) return;
+    const timeout = window.setTimeout(() => setNotice(null), 4000);
+    return () => window.clearTimeout(timeout);
+  }, [notice]);
   const resource = useResource<PageResult<BusinessNode>>(`/${entity.slug}?page=${page}&pageSize=12&q=${encodeURIComponent(debounced)}`);
   useEffect(() => { if (!resource.loading && resource.data) setPage((current) => Math.min(current, Math.max(1, Math.ceil(resource.data!.total / 12)))); }, [resource.loading, resource.data]);
   const columns = entity.fields.slice(0, 5);
-  const changed = (message: string) => { setNotice(message); resource.reload(); };
+  const changed = (message: string) => { setNotice({ message }); resource.reload(); };
   return <>
     <PageTitle eyebrow="DANH MỤC ĐÀO TẠO" title={entity.title} description={entity.slug === 'courses' ? 'Mỗi môn học là một điểm khởi đầu. Khám phá cách chúng kết nối với nhau.' : `Tra cứu và quản lý dữ liệu ${entity.title.toLocaleLowerCase('vi')}.`} actions={<>{admin && <button className="button secondary" onClick={() => { void download(`/exports/csv?label=${entity.label}`, entity.file).catch((cause: unknown) => setError(errorMessage(cause))); }}><ArrowDownToLine size={16} />Xuất CSV</button>}{admin && <button className="button primary" onClick={() => setForm('new')}><Plus size={18} />Thêm {entity.title.toLocaleLowerCase('vi')}</button>}</>} />
-    {notice && <div className="notice success" role="status">{notice}</div>}{error && <ErrorNotice message={error} />}
+    <div className={notice ? 'success-toast' : undefined}>
+      <div role="status">{notice && <><CheckCircle2 size={20} aria-hidden="true" /><span>{notice.message}</span></>}</div>
+      {notice && <button className="icon-button" type="button" aria-label="Đóng thông báo" onClick={() => setNotice(null)}><X size={16} /></button>}
+    </div>
+    {error && <ErrorNotice message={error} />}
     <section className="panel">
       <div className="table-toolbar"><label className="search-field"><Search size={18} /><input aria-label={`Tìm ${entity.title.toLocaleLowerCase('vi')}`} placeholder="Tìm theo mã, tên hoặc thuộc tính…" value={query} onChange={(event) => setQuery(event.target.value)} /></label><span className="result-count">{resource.data ? `${formatNumber(resource.data.total)} bản ghi` : 'Đang tải…'}</span></div>
       {resource.error ? <ErrorNotice message={resource.error} retry={resource.reload} /> : resource.loading ? <Loading /> : !resource.data?.items.length ? <Empty title="Không tìm thấy bản ghi" /> : <>

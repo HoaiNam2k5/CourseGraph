@@ -36,8 +36,16 @@ export function graphPresentation(graph: GraphResult, state: GraphHighlight): { 
       const borderWidth = isSelected ? 4 : inPath ? 3.5 : isPrerequisite || isDependent ? 2.5 : isCenter ? 2.5 : 1.4;
       return {
         id: node.id, label: `${id}\n${nodeName(node)}${status ? `\n${status.label}` : ''}`, shape: 'box',
-        margin: { top: 12, right: 12, bottom: 12, left: 12 }, widthConstraint: { maximum: 170 },
-        color: { background: status?.background ?? '#f5f4eb', border, highlight: { background: status?.background ?? '#e4eee6', border } },
+        shapeProperties: { borderRadius: 10 },
+        margin: { top: 12, right: 14, bottom: 12, left: 14 }, widthConstraint: { maximum: 174 },
+        color: {
+          background: status?.background ?? '#f5f4eb', border,
+          highlight: { background: status?.background ?? '#e4eee6', border },
+          hover: { background: status?.background ?? '#eef5ef', border },
+        },
+        shadow: isSelected || inPath
+          ? { enabled: true, color: inPath ? '#aa65385c' : '#153f3747', size: 14, x: 0, y: 5 }
+          : { enabled: emphasized, color: '#10261f18', size: 6, x: 0, y: 2 },
         borderWidth, borderWidthSelected: borderWidth, chosen: false, opacity: emphasized ? 1 : 0.36,
         font: { face: 'Segoe UI', size: 14, color: '#193e35', multi: false },
       };

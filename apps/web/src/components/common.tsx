@@ -4,6 +4,18 @@ import type { BusinessNode } from '../types.js';
 import { nodeName } from '../types.js';
 
 export function Loading({ text = 'Đang lấy dữ liệu…' }: { text?: string }) { return <div className="state-box" role="status"><LoaderCircle size={22} className="spin" /><span>{text}</span></div>; }
+export function SkeletonCards({ layout, text }: { layout: 'metrics' | 'recommendations'; text: string }) {
+  const metrics = layout === 'metrics';
+  return <div className={metrics ? 'metric-grid' : 'recommendation-grid'} role="status">
+    <span className="sr-only">{text}</span>
+    {Array.from({ length: metrics ? 4 : 3 }, (_, index) => <div key={index} className="skeleton-card" aria-hidden="true" />)}
+  </div>;
+}
+
+export function ProgressBar({ value, max, label, tone = 'forest' }: { value: number; max: number; label: string; tone?: 'forest' | 'amber' }) {
+  const maximum = Math.max(1, max);
+  return <progress className={`progress-bar ${tone}`} max={maximum} value={Math.min(maximum, Math.max(0, value))} aria-label={label} />;
+}
 export function ErrorNotice({ message, retry }: { message: string; retry?: () => void }) { return <div className="notice error" role="alert"><AlertCircle size={18} /><span>{message}</span>{retry && <button className="button small ghost" onClick={retry}><RefreshCw size={15} />Thử lại</button>}</div>; }
 export function Empty({ title = 'Chưa có dữ liệu', description = 'Thử thay đổi điều kiện tìm kiếm hoặc thêm dữ liệu mới.' }: { title?: string; description?: string }) { return <div className="state-box empty"><div className="empty-mark">∅</div><h3>{title}</h3><p>{description}</p></div>; }
 export function PageTitle({ eyebrow, title, description, actions }: { eyebrow: string; title: string; description: string; actions?: ReactNode }) { return <div className="page-title"><div><p className="eyebrow">{eyebrow}</p><h1>{title}</h1><p className="page-description">{description}</p></div>{actions && <div className="page-actions">{actions}</div>}</div>; }

@@ -10,6 +10,12 @@ import { Empty, ErrorNotice, Loading, PageTitle } from '../components/common.js'
 
 const motion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches ? false : { duration: 200, easingFunction: 'easeInOutQuad' as const };
 
+function fitGraph(instance: Network) {
+  // Fit synchronously so the extra margin uses the fitted scale.
+  instance.fit({ animation: false });
+  instance.moveTo({ scale: instance.getScale() * 0.93, animation: false });
+}
+
 export default function GraphPage({ initialCourse = '', initialStudent = '' }: { initialCourse?: string; initialStudent?: string }) {
   const [course, setCourse] = useState(initialCourse); const [student, setStudent] = useState(initialStudent); const [depth, setDepth] = useState('2');
   const [hierarchical, setHierarchical] = useState(false); const [selectedId, setSelectedId] = useState('');
@@ -34,12 +40,19 @@ export default function GraphPage({ initialCourse = '', initialStudent = '' }: {
   useEffect(() => { setStudent(initialStudent); }, [initialStudent]);
 
   useEffect(() => {
-    if (!container.current) return;
-    const instance = new Network(container.current, { nodes, edges }, { autoResize: true, layout: { randomSeed: 14 }, physics: false, interaction: { hover: true, keyboard: { enabled: false }, zoomView: true, dragView: true }, edges: { selectionWidth: 0 } });
+    const viewport = container.current;
+    if (!viewport) return;
+    const instance = new Network(viewport, { nodes, edges }, { autoResize: true, layout: { randomSeed: 14 }, physics: false, interaction: { hover: true, keyboard: { enabled: false }, zoomView: true, dragView: true }, edges: { selectionWidth: 0 } });
     network.current = instance;
     instance.on('selectNode', (event: { nodes: (string | number)[] }) => { setSelectedId(String(event.nodes[0] ?? '')); setActivePath(null); });
     instance.on('deselectNode', () => setSelectedId(''));
-    return () => { instance.destroy(); if (network.current === instance) network.current = null; };
+    instance.on('hoverNode', () => viewport.classList.add('node-hovered'));
+    instance.on('blurNode', () => viewport.classList.remove('node-hovered'));
+    return () => {
+      instance.destroy();
+      viewport.classList.remove('node-hovered');
+      if (network.current === instance) network.current = null;
+    };
   }, [nodes, edges]);
 
   useEffect(() => {
@@ -48,9 +61,11 @@ export default function GraphPage({ initialCourse = '', initialStudent = '' }: {
     edges.clear(); nodes.clear(); nodes.add(base.nodes); edges.add(base.edges);
     const visible = new Set(graph.data.nodes.map((node) => node.id));
     setSelectedId((previous) => visible.has(previous) ? previous : visible.has(`MonHoc:${course}`) ? `MonHoc:${course}` : '');
-    const stopPhysics = () => { instance.setOptions({ physics: false }); instance.fit({ animation: false }); }; instance.once('stabilized', stopPhysics);
-    instance.setOptions({ layout: { hierarchical: hierarchical ? { enabled: true, direction: 'LR', sortMethod: 'directed', nodeSpacing: 115, levelSeparation: 240 } : false }, physics: { enabled: !hierarchical, stabilization: { iterations: 120 }, barnesHut: { gravitationalConstant: -4400, springLength: 200, springConstant: 0.025 } } });
-    instance.fit({ animation: false });
+    const usePhysics = !hierarchical && Boolean(motion());
+    const stopPhysics = () => { instance.setOptions({ physics: false }); fitGraph(instance); };
+    if (usePhysics) instance.once('stabilized', stopPhysics);
+    instance.setOptions({ layout: { hierarchical: hierarchical ? { enabled: true, direction: 'LR', sortMethod: 'directed', nodeSpacing: 115, levelSeparation: 240 } : false }, physics: { enabled: usePhysics, stabilization: { iterations: 120 }, barnesHut: { gravitationalConstant: -4400, springLength: 200, springConstant: 0.025 } } });
+    fitGraph(instance);
     return () => instance.off('stabilized', stopPhysics);
   }, [graph.data, graph.loading, hierarchical, course, nodes, edges]);
 
@@ -62,7 +77,7 @@ export default function GraphPage({ initialCourse = '', initialStudent = '' }: {
   }, [graph.data, graph.loading, selectedId, course, currentDetail, studentAssessments, activePath, nodes, edges]);
 
   useEffect(() => {
-    const change = () => { setNativeFullscreen(document.fullscreenElement === frame.current); requestAnimationFrame(() => { network.current?.redraw(); network.current?.fit({ animation: false }); }); };
+    const change = () => { setNativeFullscreen(document.fullscreenElement === frame.current); requestAnimationFrame(() => { const instance = network.current; if (instance) { instance.redraw(); fitGraph(instance); } }); };
     document.addEventListener('fullscreenchange', change); return () => document.removeEventListener('fullscreenchange', change);
   }, []);
   useEffect(() => {
@@ -78,7 +93,7 @@ export default function GraphPage({ initialCourse = '', initialStudent = '' }: {
         else if (!event.shiftKey && (document.activeElement === last || !frame.current?.contains(document.activeElement))) { event.preventDefault(); first?.focus(); }
       }
     };
-    document.addEventListener('keydown', escape); requestAnimationFrame(() => { network.current?.redraw(); network.current?.fit({ animation: false }); });
+    document.addEventListener('keydown', escape); requestAnimationFrame(() => { const instance = network.current; if (instance) { instance.redraw(); fitGraph(instance); } });
     return () => { document.body.style.overflow = oldOverflow; document.removeEventListener('keydown', escape); previousFocus?.focus(); requestAnimationFrame(() => network.current?.redraw()); };
   }, [expandedFallback]);
   async function toggleFullscreen() {
@@ -116,7 +131,7 @@ export default function GraphPage({ initialCourse = '', initialStudent = '' }: {
       <div className="graph-workbench"><div className="graph-stage">
         <div ref={container} className="graph-canvas" role="img" aria-label={`Đồ thị gồm ${graph.data?.nodes.length ?? 0} môn học và ${graph.data?.edges.length ?? 0} liên kết tiên quyết. Dùng danh sách bên cạnh để chọn môn và đọc chi tiết.`} />
         {graph.loading && <div className="graph-overlay"><Loading text="Đang dựng mạng lưới…" /></div>}{graph.error && <div className="graph-overlay"><ErrorNotice message={graph.error} retry={graph.reload} /></div>}{!graph.loading && !graph.error && !graph.data?.nodes.length && <div className="graph-overlay"><Empty title="Chưa có môn học trong mạng lưới" /></div>}
-        <div className="graph-controls"><button className="icon-button" aria-label="Phóng to đồ thị" onClick={() => zoom(1.2)}><Plus size={18} /></button><button className="icon-button" aria-label="Thu nhỏ đồ thị" onClick={() => zoom(0.8)}><Minus size={18} /></button><button className="icon-button" aria-label="Căn vừa đồ thị" onClick={() => network.current?.fit({ animation: motion() })}><Maximize2 size={18} /></button></div>
+        <div className="graph-controls"><button className="icon-button" aria-label="Phóng to đồ thị" onClick={() => zoom(1.2)}><Plus size={18} /></button><button className="icon-button" aria-label="Thu nhỏ đồ thị" onClick={() => zoom(0.8)}><Minus size={18} /></button><button className="icon-button" aria-label="Căn vừa đồ thị" onClick={() => { if (network.current) fitGraph(network.current); }}><Maximize2 size={18} /></button></div>
         <div className="graph-legend"><span><i className="legend-line" />Mũi tên: tiên quyết → môn học sau</span></div>
       </div><aside className="selection-panel graph-course-panel" aria-label="Thông tin môn học đang chọn">
         <div className="section-heading"><h2>Thông tin môn học</h2></div>

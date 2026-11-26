@@ -15,6 +15,40 @@ async function login(page: Page) {
   await expect(page.getByRole('heading', { name: 'Nhìn thấy những kết nối.' })).toBeVisible();
 }
 
+test('login serves the favicon and supports selecting, moving and resetting the demo graph', async ({ page }) => {
+  await page.goto('/');
+  const favicon = page.locator('link[rel="icon"]');
+  await expect(favicon).toHaveAttribute('href', '/favicon.svg');
+  const iconFile = await page.request.get('/favicon.svg');
+  expect(iconFile.ok()).toBe(true);
+  expect(iconFile.headers()['content-type']).toContain('image/svg+xml');
+
+  const graph = page.getByRole('figure', { name: 'Sơ đồ dữ liệu mẫu' });
+  const student = graph.getByRole('button', { name: 'Sinh viên', exact: true });
+  const position = () => student.evaluate((node) => ({ left: node.style.left, top: node.style.top }));
+  const initialPosition = await position();
+  await student.press('Enter');
+  await expect(student).toHaveAttribute('aria-pressed', 'true');
+  await expect(graph.getByText(/nối sinh viên với các môn đã hoàn thành/)).toBeVisible();
+  await student.press('ArrowLeft');
+  expect(await position()).not.toEqual(initialPosition);
+
+  const edge = graph.locator('.login-graph-link').last();
+  const beforeDrag = await edge.getAttribute('d');
+  const bounds = await student.boundingBox();
+  expect(bounds).not.toBeNull();
+  const { x, y, width, height } = bounds!;
+  await page.mouse.move(x + width / 2, y + height / 2);
+  await page.mouse.down();
+  await page.mouse.move(x + width / 2 + 38, y + height / 2 - 24, { steps: 5 });
+  await page.mouse.up();
+  await expect(edge).not.toHaveAttribute('d', beforeDrag!);
+
+  await graph.getByRole('button', { name: 'Đặt lại sơ đồ' }).click();
+  expect(await position()).toEqual(initialPosition);
+  await expect(graph.getByRole('button', { name: 'Môn học', exact: true })).toHaveAttribute('aria-pressed', 'true');
+});
+
 test('admin reads real dashboard, catalog and signs out', async ({ page }) => {
   await login(page);
   await expect(page.getByText('Database sẵn sàng', { exact: true })).toBeVisible();
@@ -47,6 +81,11 @@ test('admin creates, edits and deletes a course through the UI', async ({ page }
     await dialog.getByLabel('Loại môn', { exact: false }).fill('Tự Chọn');
     await dialog.getByRole('button', { name: 'Lưu thay đổi' }).click();
     await expect(dialog).not.toBeVisible();
+    const toast = page.locator('.success-toast');
+    await expect(toast.getByRole('status')).toHaveText('Đã lưu dữ liệu thành công.');
+    await expect(toast).toHaveCSS('position', 'fixed');
+    await toast.getByRole('button', { name: 'Đóng thông báo' }).click();
+    await expect(toast).toHaveCount(0);
     await page.getByLabel('Tìm môn học').fill(id);
     await page.getByRole('button', { name: `Sửa ${id}`, exact: true }).click();
     await dialog.getByLabel('Tên môn học', { exact: false }).fill('Môn kiểm thử đã chỉnh sửa');
