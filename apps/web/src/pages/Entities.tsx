@@ -1,23 +1,39 @@
 import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
-import { ArrowDownToLine, ArrowLeft, ArrowRight, CheckCircle2, Eye, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
+import { ArrowDownToLine, ArrowLeft, ArrowRight, CheckCircle2, Eye, Pencil, Plus, Search, SlidersHorizontal, Trash2, X } from 'lucide-react';
 import { api, ApiError, download, errorMessage, useAllPages, useResource } from '../api.js';
-import type { BusinessEdge, BusinessNode, Catalog, Entity, NodeDetail, PageResult, Relationship } from '../types.js';
+import type { BusinessEdge, BusinessNode, Catalog, Entity, NodeDetail, Relationship } from '../types.js';
 import { formatNumber, nodeName } from '../types.js';
 import { Empty, ErrorNotice, Loading, Modal, NodeCard, PageTitle } from '../components/common.js';
 
+import { catalogFacetKeys, facetValues, queryCatalog } from '../catalog-search.js';
+import './catalog-search.css';
+
+const PAGE_SIZE = 12;
+const emptyNodes: BusinessNode[] = [];
+
 export function EntitiesPage({ entity, catalog, admin, onGraph }: { entity: Entity; catalog: Catalog; admin: boolean; onGraph: (courseId: string) => void }) {
-  const [query, setQuery] = useState(''); const [debounced, setDebounced] = useState(''); const [page, setPage] = useState(1);
+  const [query, setQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const [sort, setSort] = useState(entity.key + ':asc');
+  const [filters, setFilters] = useState<Record<string, string>>({});
+  const [showFilters, setShowFilters] = useState(false);
+  const filterPanelId = useId();
   const [form, setForm] = useState<BusinessNode | 'new' | null>(null); const [selected, setSelected] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<BusinessNode | null>(null); const [notice, setNotice] = useState<{ message: string } | null>(null); const [error, setError] = useState('');
-  useEffect(() => { const timeout = window.setTimeout(() => { setDebounced(query); setPage(1); }, 250); return () => clearTimeout(timeout); }, [query]);
-  useEffect(() => { setQuery(''); setDebounced(''); setPage(1); setSelected(null); setNotice(null); }, [entity.slug]);
   useEffect(() => {
     if (!notice) return;
     const timeout = window.setTimeout(() => setNotice(null), 4000);
     return () => window.clearTimeout(timeout);
   }, [notice]);
-  const resource = useResource<PageResult<BusinessNode>>(`/${entity.slug}?page=${page}&pageSize=12&q=${encodeURIComponent(debounced)}`);
-  useEffect(() => { if (!resource.loading && resource.data) setPage((current) => Math.min(current, Math.max(1, Math.ceil(resource.data!.total / 12)))); }, [resource.loading, resource.data]);
+  const resource = useAllPages<BusinessNode>(`/${entity.slug}`);
+  const nodes = resource.data?.items ?? emptyNodes;
+  const [sortKey, direction] = sort.split(':');
+  const filtered = useMemo(() => queryCatalog(nodes, query, filters, sortKey, direction === 'desc'), [nodes, query, filters, sortKey, direction]);
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+  const items = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const filterCount = Object.values(filters).filter(Boolean).length;
+  const facetFields = entity.fields.filter(field => catalogFacetKeys[entity.slug]?.includes(field.key));
   const columns = entity.fields.slice(0, 5);
   const changed = (message: string) => { setNotice({ message }); resource.reload(); };
   return <>
@@ -28,10 +44,31 @@ export function EntitiesPage({ entity, catalog, admin, onGraph }: { entity: Enti
     </div>
     {error && <ErrorNotice message={error} />}
     <section className="panel">
-      <div className="table-toolbar"><label className="search-field"><Search size={18} /><input aria-label={`Tìm ${entity.title.toLocaleLowerCase('vi')}`} placeholder="Tìm theo mã, tên hoặc thuộc tính…" value={query} onChange={(event) => setQuery(event.target.value)} /></label><span className="result-count">{resource.data ? `${formatNumber(resource.data.total)} bản ghi` : 'Đang tải…'}</span></div>
-      {resource.error ? <ErrorNotice message={resource.error} retry={resource.reload} /> : resource.loading ? <Loading /> : !resource.data?.items.length ? <Empty title="Không tìm thấy bản ghi" /> : <>
-        <div className="table-scroll"><table className="data-table"><thead><tr>{columns.map((field) => <th key={field.key}>{field.label}</th>)}<th><span className="sr-only">Thao tác</span></th></tr></thead><tbody>{resource.data.items.map((node) => <tr key={node.id}>{columns.map((field, index) => <td key={field.key}>{index === 0 ? <span className="code-pill">{node.properties[field.key]}</span> : field.key === 'TenMH' || field.key === 'HoTen' ? <button className="text-link" onClick={() => setSelected(node.id)}>{node.properties[field.key]}</button> : field.key === 'LoaiMon' ? <span className={`tag ${String(node.properties[field.key]).includes('Bắt') ? 'green' : 'sand'}`}>{node.properties[field.key]}</span> : field.key === 'SoTC' ? <span className="credit-pill">{node.properties[field.key]}</span> : node.properties[field.key]}</td>)}<td><div className="row-actions"><button className="icon-button" title="Xem chi tiết" aria-label={`Chi tiết ${node.id}`} onClick={() => setSelected(node.id)}><Eye size={17} /></button>{admin && <><button className="icon-button" title="Chỉnh sửa" aria-label={`Sửa ${node.id}`} onClick={() => setForm(node)}><Pencil size={16} /></button><button className="icon-button danger" title="Xóa" aria-label={`Xóa ${node.id}`} onClick={() => setDeleting(node)}><Trash2 size={16} /></button></>}</div></td></tr>)}</tbody></table></div>
-        <div className="table-footer"><span>Trang {page} / {Math.max(1, Math.ceil(resource.data.total / 12))}</span><div className="row-actions"><button className="button small secondary" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}><ArrowLeft size={15} />Trước</button><button className="button small secondary" disabled={page * 12 >= resource.data.total} onClick={() => setPage((value) => value + 1)}>Sau<ArrowRight size={15} /></button></div></div>
+      <div className="catalog-toolbar">
+        <label className="search-field"><Search size={18} /><input aria-label={`Tìm ${entity.title.toLocaleLowerCase('vi')}`} placeholder="Tìm theo mã, tên hoặc thuộc tính…" value={query} onChange={event => { setQuery(event.target.value); setPage(1); }} /></label>
+        <button type="button" className="button small secondary" aria-expanded={showFilters} aria-controls={filterPanelId} onClick={() => setShowFilters(!showFilters)}>
+          <SlidersHorizontal size={16} />Bộ lọc{filterCount > 0 && <span className="tag green">{filterCount}</span>}
+        </button>
+        <select className="catalog-sort" aria-label="Sắp xếp danh mục" value={sort} onChange={event => { setSort(event.target.value); setPage(1); }}>
+          {entity.fields.map(field => <optgroup key={field.key} label={field.label}>
+            <option value={field.key + ':asc'}>{field.label} ↑</option>
+            <option value={field.key + ':desc'}>{field.label} ↓</option>
+          </optgroup>)}
+        </select>
+        <span className="result-count" role="status">{resource.loading ? 'Đang tải…' : `${formatNumber(filtered.length)} bản ghi`}</span>
+      </div>
+      {showFilters && <div className="catalog-filters" id={filterPanelId}>
+        {facetFields.map(field => <label className="field" key={field.key}><span>{field.label}</span>
+          <select value={filters[field.key] ?? ''} onChange={event => { setFilters({ ...filters, [field.key]: event.target.value }); setPage(1); }}>
+            <option value="">Tất cả</option>
+            {facetValues(nodes, field.key).map(value => <option key={value} value={value}>{value}</option>)}
+          </select>
+        </label>)}
+        {filterCount > 0 && <button className="button small ghost" onClick={() => { setFilters({}); setPage(1); }}>Xóa bộ lọc</button>}
+      </div>}
+      {resource.error ? <ErrorNotice message={resource.error} retry={resource.reload} /> : resource.loading ? <Loading /> : !items.length ? <Empty title="Không tìm thấy bản ghi" description="Thử thay đổi từ khóa hoặc bộ lọc." /> : <>
+        <div className="table-scroll"><table className="data-table"><thead><tr>{columns.map((field) => <th key={field.key}>{field.label}</th>)}<th><span className="sr-only">Thao tác</span></th></tr></thead><tbody>{items.map((node) => <tr key={node.id}>{columns.map((field, index) => <td key={field.key}>{index === 0 ? <span className="code-pill">{node.properties[field.key]}</span> : field.key === 'TenMH' || field.key === 'HoTen' ? <button className="text-link" onClick={() => setSelected(node.id)}>{node.properties[field.key]}</button> : field.key === 'LoaiMon' ? <span className={`tag ${String(node.properties[field.key]).includes('Bắt') ? 'green' : 'sand'}`}>{node.properties[field.key]}</span> : field.key === 'SoTC' ? <span className="credit-pill">{node.properties[field.key]}</span> : node.properties[field.key]}</td>)}<td><div className="row-actions"><button className="icon-button" title="Xem chi tiết" aria-label={`Chi tiết ${node.id}`} onClick={() => setSelected(node.id)}><Eye size={17} /></button>{admin && <><button className="icon-button" title="Chỉnh sửa" aria-label={`Sửa ${node.id}`} onClick={() => setForm(node)}><Pencil size={16} /></button><button className="icon-button danger" title="Xóa" aria-label={`Xóa ${node.id}`} onClick={() => setDeleting(node)}><Trash2 size={16} /></button></>}</div></td></tr>)}</tbody></table></div>
+        <div className="table-footer"><span>Trang {currentPage} / {pageCount}</span><div className="row-actions"><button className="button small secondary" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}><ArrowLeft size={15} />Trước</button><button className="button small secondary" disabled={currentPage >= pageCount} onClick={() => setPage(currentPage + 1)}>Sau<ArrowRight size={15} /></button></div></div>
       </>}
     </section>
     {entity.slug === 'courses' && <div className="context-strip"><span className="context-dot" /><p><strong>Đi từ môn học đến lộ trình.</strong> Mở chi tiết một môn để xem tiên quyết hoặc khám phá mạng lưới.</p></div>}
