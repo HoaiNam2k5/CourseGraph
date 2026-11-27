@@ -8,6 +8,7 @@ import path from 'node:path';
 import neo4j, { type Driver } from 'neo4j-driver';
 import { z } from 'zod';
 import { stringify } from 'csv-stringify/sync';
+import { displayNameMaxLength } from '../../../packages/shared/src/account.js';
 import { businessLabels, entityByLabel, entityBySlug, entityDefinitions, relationshipDefinitions } from '../../../packages/shared/src/catalog.js';
 import { DataValidationError, validateBusinessData } from '../../../packages/shared/src/data.js';
 import { type AppConfig, loadConfig } from './config.js';
@@ -21,6 +22,7 @@ import { businessNetwork, courseNetwork, recommendCourses, shortestCoursePath, s
 import { createImportPreview, parseCsvImport } from './transfers.js';
 
 const credentialsSchema = z.object({ username: usernameSchema, password: z.string().min(1).max(128) }).strict();
+const displayNameSchema = z.string().trim().min(1).max(displayNameMaxLength);
 const relationSchema = z.object({ fromLabel: z.string(), fromId: z.string().min(1).max(80), type: z.string(), toLabel: z.string(), toId: z.string().min(1).max(80) }).strict();
 const idSchema = z.string().min(1).max(80);
 const propertiesSchema = z.object({ properties: z.record(z.string(), z.unknown()) }).strict();
@@ -98,7 +100,7 @@ export function createApp(options: { config?: AppConfig; driver?: Driver } = {})
     response.json({ items });
   });
   api.post('/users', requireAdmin, async (request, response) => {
-    const input = z.object({ username: usernameSchema, password: passwordSchema, displayName: z.string().trim().min(1).max(120), role: z.enum(['ADMIN', 'VIEWER']), active: z.boolean().default(true) }).strict().parse(request.body);
+    const input = z.object({ username: usernameSchema, password: passwordSchema, displayName: displayNameSchema, role: z.enum(['ADMIN', 'VIEWER']), active: z.boolean().default(true) }).strict().parse(request.body);
     const passwordHash = await hashPassword(input.password);
     const user = await writeTransaction(driver, config.database, async (tx) => {
       await authWriteLock(tx);
@@ -112,11 +114,16 @@ export function createApp(options: { config?: AppConfig; driver?: Driver } = {})
   });
   api.patch('/users/:id', requireAdmin, async (request, response) => {
     const id = idSchema.parse(request.params.id);
-    const input = z.object({ displayName: z.string().trim().min(1).max(120).optional(), role: z.enum(['ADMIN', 'VIEWER']).optional(), active: z.boolean().optional() }).strict().refine((value) => Object.keys(value).length > 0).parse(request.body);
+    const input = z.object({ displayName: displayNameSchema.optional(), role: z.enum(['ADMIN', 'VIEWER']).optional(), active: z.boolean().optional() }).strict().refine((value) => Object.keys(value).length > 0).parse(request.body);
     const user = await writeTransaction(driver, config.database, async (tx) => {
       await authWriteLock(tx);
-      await protectLastAdmin(tx, id, input);
-      const result = await tx.run('MATCH (u:AppUser {id:$id}) SET u+=$properties,u.tokenVersion=u.tokenVersion+1 RETURN properties(u) AS user', { id, properties: input });
+      const existing = await protectLastAdmin(tx, id, input);
+      const revokeSessions = (input.role !== undefined && input.role !== existing.role)
+        || (input.active !== undefined && input.active !== existing.active);
+      const result = await tx.run(
+        'MATCH (u:AppUser {id:$id}) SET u += $properties, u.tokenVersion = CASE WHEN $revokeSessions THEN u.tokenVersion + 1 ELSE u.tokenVersion END RETURN properties(u) AS user',
+        { id, properties: input, revokeSessions },
+      );
       return safeUser(plain(result.records[0].get('user')) as StoredUser);
     });
     response.json(user);
@@ -199,21 +206,38 @@ export function createApp(options: { config?: AppConfig; driver?: Driver } = {})
     const data = validateBusinessData(JSON.parse(preview.dataJson) as unknown);
     response.json(await importBusinessData(driver, config.database, data, request.auth!.user.username, { id, userId: request.auth!.user.id }));
   });
+  async function recordExport(username: string, format: 'CSV' | 'JSON', filename: string, nodeCount: number, relationshipCount: number) {
+    await writeTransaction(driver, config.database, async (tx) => {
+      await tx.run(
+        "CREATE (:AppTransfer {id:randomUUID(),kind:'EXPORT',username:$username,createdAt:$createdAt,format:$format,filename:$filename,nodeCount:$nodes,relationshipCount:$relationships})",
+        { username, createdAt: new Date().toISOString(), format, filename, nodes: neo4j.int(nodeCount), relationships: neo4j.int(relationshipCount) },
+      );
+    });
+  }
+
   api.get('/exports/business-data', requireAdmin, async (request, response) => {
     const data = await exportBusinessData(driver, config.database);
-    await writeTransaction(driver, config.database, async (tx) => { await tx.run("CREATE (:AppTransfer {id:randomUUID(),kind:'EXPORT',username:$username,createdAt:$createdAt,nodeCount:$nodes,relationshipCount:$relationships})", { username: request.auth!.user.username, createdAt: new Date().toISOString(), nodes: neo4j.int(data.nodes.length), relationships: neo4j.int(data.relationships.length) }); });
-    response.attachment('coursegraph-business-data.json').json(data);
+    const filename = 'coursegraph-business-data.json';
+    await recordExport(request.auth!.user.username, 'JSON', filename, data.nodes.length, data.relationships.length);
+    response.attachment(filename).json(data);
   });
   api.get('/exports/csv', requireAdmin, async (request, response) => {
     const label = z.string().parse(request.query.label);
-    const data = await exportBusinessData(driver, config.database);
-    if (label === 'relationships') {
-      const rows = data.relationships.map((edge) => ({ NhanNguon: `[${edge.fromLabel}]`, MaNguon: edge.fromId, LoaiQuanHe: edge.type, NhanDich: `[${edge.toLabel}]`, MaDich: edge.toId }));
-      return response.attachment('QuanHeLienKet.csv').type('text/csv').send(stringify(rows, { header: true, bom: true, columns: ['NhanNguon', 'MaNguon', 'LoaiQuanHe', 'NhanDich', 'MaDich'] }));
-    }
     const definition = entityByLabel(label);
-    if (!definition) throw new HttpError(400, 'Nhãn dữ liệu không hợp lệ.');
-    response.attachment(definition.file).type('text/csv').send(stringify(data.nodes.filter((node) => node.label === definition.label).map((node) => node.properties), { header: true, bom: true, columns: definition.fields.map((field) => field.key) }));
+    if (label !== 'relationships' && !definition) throw new HttpError(400, 'Nhãn dữ liệu không hợp lệ.');
+    const data = await exportBusinessData(driver, config.database);
+    const username = request.auth!.user.username;
+    if (!definition) {
+      const filename = 'QuanHeLienKet.csv';
+      const rows = data.relationships.map((edge) => ({ NhanNguon: `[${edge.fromLabel}]`, MaNguon: edge.fromId, LoaiQuanHe: edge.type, NhanDich: `[${edge.toLabel}]`, MaDich: edge.toId }));
+      const csv = stringify(rows, { header: true, bom: true, columns: ['NhanNguon', 'MaNguon', 'LoaiQuanHe', 'NhanDich', 'MaDich'] });
+      await recordExport(username, 'CSV', filename, 0, rows.length);
+      return response.attachment(filename).type('text/csv').send(csv);
+    }
+    const rows = data.nodes.filter((node) => node.label === definition.label).map((node) => node.properties);
+    const csv = stringify(rows, { header: true, bom: true, columns: definition.fields.map((field) => field.key) });
+    await recordExport(username, 'CSV', definition.file, rows.length, 0);
+    response.attachment(definition.file).type('text/csv').send(csv);
   });
   api.get('/transfers/history', requireAdmin, async (_request, response) => {
     const items = await readTransaction(driver, config.database, async (tx) => {

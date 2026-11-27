@@ -110,10 +110,11 @@ export default function Transfers({ catalog }: { catalog: Catalog }) {
           </div>
         </section>
         <details className="panel transfer-backup">
-          <summary><Archive size={18} aria-hidden="true" /><span>Sao lưu cơ sở dữ liệu</span><ChevronDown className="backup-chevron" size={17} aria-hidden="true" /></summary>
+          <summary><Archive size={18} aria-hidden="true" /><span>Sao lưu và khôi phục cơ sở dữ liệu</span><ChevronDown className="backup-chevron" size={17} aria-hidden="true" /></summary>
           <div className="transfer-backup-content">
-            <p>Bản sao lưu đầy đủ gồm dữ liệu, tài khoản và cấu hình. Dùng bộ lệnh vận hành đi kèm để sao lưu và khôi phục.</p>
-            <p>Thử khôi phục trên một cơ sở dữ liệu riêng trước khi thay thế bản chính.</p>
+            <p><strong>CSV và JSON.</strong> Trang này xuất dữ liệu đào tạo và nhập bổ sung vào cơ sở dữ liệu hiện có.</p>
+            <p><strong>Neo4j cục bộ.</strong> Dùng lệnh vận hành của dự án để tạo bản dump và thử khôi phục trên cơ sở dữ liệu riêng. Tệp dump lưu dữ liệu ứng dụng và các tài khoản CourseGraph. Cấu hình triển khai và thông tin kết nối được quản lý riêng.</p>
+            <p><strong>Neo4j Aura.</strong> Các thao tác sao lưu và khôi phục do Aura Console quản lý, tùy gói của cơ sở dữ liệu.</p>
           </div>
         </details>
       </div>
@@ -125,7 +126,7 @@ export default function Transfers({ catalog }: { catalog: Catalog }) {
           <thead><tr><th scope="col">Thời gian</th><th scope="col">Thao tác</th><th scope="col">Trạng thái</th><th scope="col">Người thực hiện</th></tr></thead>
           <tbody>{history.data.items.map((item) => <tr key={item.id}>
             <td>{item.createdAt || item.timestamp ? new Date(item.createdAt ?? item.timestamp ?? '').toLocaleString('vi-VN') : '—'}</td>
-            <td>{item.type ?? item.kind ?? 'Nhập dữ liệu'}</td>
+            <td>{transferAction(item)}</td>
             <td><span className="tag green">{item.status ?? 'Hoàn thành'}</span></td>
             <td>{item.username ?? '—'}</td>
           </tr>)}</tbody>
@@ -133,6 +134,14 @@ export default function Transfers({ catalog }: { catalog: Catalog }) {
       </div> : <Empty title="Chưa có thao tác nhập xuất" description="Các thao tác mới sẽ xuất hiện tại đây." />}
     </section>
   </div>;
+}
+
+function transferAction(item: TransferEntry) {
+  const kind = item.type ?? item.kind;
+  if (kind === 'EXPORT') {
+    return item.format && item.filename ? `Xuất ${item.format} · ${item.filename}` : 'Xuất dữ liệu';
+  }
+  return kind === 'IMPORT' || !kind ? 'Nhập dữ liệu' : kind;
 }
 
 function PreviewSummary({ value }: { value: unknown }) {

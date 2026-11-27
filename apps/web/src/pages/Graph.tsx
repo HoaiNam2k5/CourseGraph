@@ -18,9 +18,16 @@ function fitGraph(instance: Network) {
   instance.moveTo({ scale: instance.getScale() * 0.93, animation: false });
 }
 
-export default function GraphPage({ initialCourse = '', initialStudent = '' }: { initialCourse?: string; initialStudent?: string }) {
-  const [course, setCourse] = useState(initialCourse); const [student, setStudent] = useState(initialStudent); const [depth, setDepth] = useState('2');
-  const [hierarchical, setHierarchical] = useState(false); const [selectedId, setSelectedId] = useState('');
+export interface CourseGraphProps {
+  course: string;
+  student: string;
+  depth: string;
+  onContextChange: (course: string, student: string, depth: string) => void;
+}
+
+export default function GraphPage({ course, student, depth, onContextChange }: CourseGraphProps) {
+  const [hierarchical, setHierarchical] = useState(false);
+  const [selectedId, setSelectedId] = useState(course ? 'MonHoc:' + course : '');
   const [activePath, setActivePath] = useState<PathResult['paths'][number] | null>(null);
   const [nativeFullscreen, setNativeFullscreen] = useState(false); const [expandedFallback, setExpandedFallback] = useState(false); const [fullscreenHint, setFullscreenHint] = useState('');
   const mobile = useMobileGraph();
@@ -28,7 +35,8 @@ export default function GraphPage({ initialCourse = '', initialStudent = '' }: {
   const [showFilters, setShowFilters] = useState(false);
   const detailTrigger = useRef<HTMLButtonElement>(null);
   const courses = useAllPages<BusinessNode>('/courses'); const students = useAllPages<BusinessNode>('/students');
-  const graph = useResource<GraphResult>(`/graph?depth=${depth}${course ? `&courseId=${encodeURIComponent(course)}` : ''}`);
+  const graphUrl = course ? '/graph?courseId=' + encodeURIComponent(course) + '&depth=' + depth : '/graph';
+  const graph = useResource<GraphResult>(graphUrl);
   const selectedRawId = rawGraphId(selectedId);
   const detail = useResource<NodeDetail>(selectedRawId ? `/courses/${encodeURIComponent(selectedRawId)}` : null);
   const assessment = useStudentAssessment(student);
@@ -42,8 +50,7 @@ export default function GraphPage({ initialCourse = '', initialStudent = '' }: {
   const graphKey = `${course}|${depth}|${graph.data?.nodes.map((node) => node.id).join(',') ?? ''}|${graph.data?.edges.map((edge) => edge.id).join(',') ?? ''}`;
   const highlightPath = useCallback((path: PathResult['paths'][number] | null) => setActivePath(path), []);
   const fullscreen = nativeFullscreen || expandedFallback;
-  useEffect(() => { setCourse(initialCourse); setSelectedId(initialCourse ? `MonHoc:${initialCourse}` : ''); }, [initialCourse]);
-  useEffect(() => { setStudent(initialStudent); }, [initialStudent]);
+  useEffect(() => { setSelectedId(course ? 'MonHoc:' + course : ''); setActivePath(null); }, [course]);
 
   useEffect(() => {
     const viewport = container.current;
@@ -113,7 +120,7 @@ export default function GraphPage({ initialCourse = '', initialStudent = '' }: {
   function selectNode(id: string) {
     setSelectedId(id); setActivePath(null);
     if (graph.data?.nodes.some((node) => node.id === id)) { network.current?.selectNodes([id]); network.current?.focus(id, { scale: 1, animation: motion() }); }
-    else if (id) setCourse(rawGraphId(id));
+    else if (id) onContextChange(rawGraphId(id), student, depth);
   }
   const zoom = (factor: number) => { const instance = network.current; if (instance) instance.moveTo({ scale: instance.getScale() * factor, animation: motion() }); };
   const pathOutsideCount = activePath?.courses.filter((item) => !graph.data?.nodes.some((node) => rawCourseId(node) === item.id)).length ?? 0;
@@ -141,13 +148,14 @@ export default function GraphPage({ initialCourse = '', initialStudent = '' }: {
   return <>
     <section ref={frame} className={`panel graph-panel graph-explorer${expandedFallback ? ' graph-expanded-fallback' : ''}`} aria-label="Không gian khám phá mạng lưới">
       <div className="graph-toolbar">
-        <label className="field compact"><span>Môn học trung tâm</span><select value={course} onChange={(event) => { setCourse(event.target.value); setSelectedId(event.target.value ? `MonHoc:${event.target.value}` : ''); setActivePath(null); }}><option value="">Tất cả môn học</option>{courses.data?.items.map((node) => <option value={node.id} key={node.id}>{node.id} · {nodeName(node)}</option>)}</select></label>
+        <label className="field compact"><span>Môn học trung tâm</span><select value={course} onChange={(event) => onContextChange(event.target.value, student, depth)}><option value="">Tất cả môn học</option>{courses.data?.items.map((node) => <option value={node.id} key={node.id}>{node.id} · {nodeName(node)}</option>)}</select></label>
         <button type="button" className="button secondary small graph-mobile-control" aria-expanded={showFilters} aria-controls="course-graph-filters" onClick={() => setShowFilters(!showFilters)}>
           <SlidersHorizontal size={16} aria-hidden="true" />Bộ lọc
         </button>
         <div id="course-graph-filters" className={`graph-secondary-filters${showFilters ? ' is-expanded' : ''}`}>
-          <GraphStudentFilter students={students.data?.items ?? []} value={student} onApply={setStudent} />
-          <label className="field compact depth-field"><span>Độ sâu liên kết</span><select value={depth} onChange={(event) => setDepth(event.target.value)}>{[1, 2, 3, 4].map((value) => <option value={value} key={value}>{value} cấp</option>)}</select></label>
+          <GraphStudentFilter students={students.data?.items ?? []} loading={students.loading} error={students.error}
+            retry={students.reload} value={student} onApply={(id) => onContextChange(course, id, depth)} />
+          <label className="field compact depth-field"><span>Độ sâu liên kết</span><select value={depth} disabled={!course} onChange={(event) => onContextChange(course, student, event.target.value)}>{[1, 2, 3, 4].map((value) => <option value={value} key={value}>{value} cấp</option>)}</select></label>
           <label className="checkbox-row"><input type="checkbox" checked={hierarchical} onChange={(event) => setHierarchical(event.target.checked)} />Theo cấp bậc</label>
         </div>
         <button className="button secondary small graph-fullscreen-toggle" aria-label={fullscreen ? 'Thoát toàn màn hình đồ thị' : 'Mở toàn màn hình đồ thị'} aria-pressed={fullscreen} onClick={() => { void toggleFullscreen(); }}>{fullscreen ? <Minimize2 size={16} /> : <Expand size={16} />}<span>{fullscreen ? 'Thu gọn' : 'Toàn màn hình'}</span></button>

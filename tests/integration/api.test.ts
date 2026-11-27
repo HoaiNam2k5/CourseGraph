@@ -176,6 +176,20 @@ describe('CourseGraph real Neo4j integration', { concurrency: false }, () => {
     await signIn('viewer', 'Reset-Password-123!');
   });
 
+  test('saving an unchanged account or changing its display name preserves the session', async () => {
+    const url = '/api/users/' + admin.user.id;
+    const samePermissions = { role: 'ADMIN', active: true };
+    const original = await get('/api/auth/me').expect(200);
+    await mutate('patch', url, { ...samePermissions, displayName: original.body.user.displayName }).expect(200);
+    await get('/api/users').expect(200);
+
+    const updated = await mutate('patch', url, { ...samePermissions, displayName: 'Tên hiển thị mới' }).expect(200);
+    assert.equal(updated.body.displayName, 'Tên hiển thị mới');
+    const current = await get('/api/auth/me').expect(200);
+    assert.equal(current.body.user.displayName, 'Tên hiển thị mới');
+    assert.equal(current.body.csrfToken, admin.csrfToken);
+  });
+
   test('logout, password changes and auth-secret rotation invalidate issued tokens', async () => {
     const old = admin;
     await mutate('post', '/api/auth/logout', {}).expect(200);
@@ -298,8 +312,21 @@ describe('CourseGraph real Neo4j integration', { concurrency: false }, () => {
     assert.equal(exported.body.nodes.length, fixture.nodes.length);
     assert.equal(JSON.stringify(exported.body).includes('passwordHash'), false);
     await get('/api/exports/csv?label=MonHoc').expect('Content-Type', /csv/).expect(200);
+    await get('/api/exports/csv?label=relationships').expect('Content-Type', /csv/).expect(200);
+    await get('/api/exports/csv?label=unknown').expect(400);
     const history = await get('/api/transfers/history').expect(200);
-    assert.ok(history.body.items.some((item: { kind: string }) => item.kind === 'EXPORT'));
+    const exports = history.body.items
+      .filter((item: { kind: string }) => item.kind === 'EXPORT')
+      .map(({ format, filename, nodeCount, relationshipCount }: {
+        format: string; filename: string; nodeCount: number; relationshipCount: number;
+      }) => ({ format, filename, nodeCount, relationshipCount }));
+    assert.equal(exports.length, 3);
+    assert.deepEqual(exports.find((item: { filename: string }) => item.filename === 'MonHoc.csv'),
+      { format: 'CSV', filename: 'MonHoc.csv', nodeCount: 6, relationshipCount: 0 });
+    assert.deepEqual(exports.find((item: { filename: string }) => item.filename === 'QuanHeLienKet.csv'),
+      { format: 'CSV', filename: 'QuanHeLienKet.csv', nodeCount: 0, relationshipCount: fixture.relationships.length });
+    assert.deepEqual(exports.find((item: { format: string }) => item.format === 'JSON'),
+      { format: 'JSON', filename: 'coursegraph-business-data.json', nodeCount: fixture.nodes.length, relationshipCount: fixture.relationships.length });
     await writeTransaction(driver, config.database, async (tx) => { await tx.run("MATCH (a:MonHoc {MaMH:'A'}),(b:MonHoc {MaMH:'B'}) CREATE (a)-[:TIEN_QUYET_CHO]->(b)"); });
     await assert.rejects(() => exportBusinessData(driver, config.database), /duplicate physical/);
     await get('/api/exports/business-data').expect(409);

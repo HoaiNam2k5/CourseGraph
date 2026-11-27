@@ -101,6 +101,36 @@ test('a viewer signing in after an admin lands on the overview and can follow sh
   await expect(page).toHaveURL(/#courses$/);
 });
 
+test('saving the signed-in admin display name keeps the session and updates the sidebar', async ({ page }) => {
+  await login(page);
+  const me = await (await page.request.get('/api/auth/me')).json() as {
+    user: { id: string; username: string; displayName: string };
+    csrfToken: string;
+  };
+  await page.getByRole('button', { name: 'Tài khoản & phân quyền', exact: true }).click();
+  const edit = page.getByRole('button', { name: 'Sửa tài khoản ' + me.user.username, exact: true });
+  const dialog = page.getByRole('dialog', { name: 'Chỉnh sửa tài khoản' });
+  const save = dialog.getByRole('button', { name: 'Lưu tài khoản', exact: true });
+  const changedName = me.user.displayName === 'Quản trị kiểm thử' ? 'Quản trị kiểm thử mới' : 'Quản trị kiểm thử';
+  try {
+    await edit.click();
+    await save.click();
+    await expect(dialog).not.toBeVisible();
+    await expect(edit).toBeVisible();
+    expect((await page.request.get('/api/auth/me')).status()).toBe(200);
+    await edit.click();
+    await dialog.getByLabel('Tên hiển thị', { exact: true }).fill(changedName);
+    await save.click();
+    await expect(page.locator('.sidebar-user .user-label strong')).toHaveText(changedName);
+    expect((await page.request.get('/api/auth/me')).status()).toBe(200);
+  } finally {
+    await page.request.patch('/api/users/' + encodeURIComponent(me.user.id), {
+      headers: { Origin: origin, 'x-csrf-token': me.csrfToken },
+      data: { displayName: me.user.displayName },
+    });
+  }
+});
+
 test('admin creates, edits and deletes a course through the UI', async ({ page }) => {
   await login(page);
   const id = `E2E${Date.now()}`;
@@ -150,6 +180,7 @@ test('graph and recommendations load from Neo4j', async ({ page }) => {
   ];
   const controlBounds = await Promise.all(primaryControls.map((control) => control.boundingBox()));
   expect(controlBounds.map((box) => Math.round(box!.y))).toEqual(Array(4).fill(Math.round(controlBounds[0]!.y)));
+  await expect(page.getByRole('combobox', { name: 'Độ sâu liên kết' })).toBeDisabled();
   await expect(page.getByRole('searchbox', { name: 'Tìm sinh viên' })).toHaveCount(0);
   await studentFilter.press('Enter');
   const studentDialog = page.getByRole('dialog', { name: 'Trạng thái theo sinh viên' });
@@ -167,6 +198,7 @@ test('graph and recommendations load from Neo4j', async ({ page }) => {
   await expect(studentFilter).toHaveText('Không áp dụng sinh viên');
   await expect(studentFilter).toBeFocused();
   await page.getByLabel('Môn học trung tâm').selectOption('MH005');
+  await expect(page.getByRole('combobox', { name: 'Độ sâu liên kết' })).toBeEnabled();
   await expect(page.locator('.graph-canvas canvas')).toBeVisible();
   await page.screenshot({ path: 'evidence/graph.png', fullPage: true });
   await page.getByRole('button', { name: 'Gợi ý học tập', exact: true }).click();
@@ -181,9 +213,29 @@ test('graph and recommendations load from Neo4j', async ({ page }) => {
   await search.fill('sv001');
   await expect(students.locator('option')).toHaveCount(2);
   await students.selectOption('SV001');
+  const semester = page.getByRole('combobox', { name: 'Học kỳ mở môn' });
+  await semester.selectOption('HK003');
   await page.getByRole('button', { name: 'Xem môn có thể học', exact: true }).click();
-  await expect(page.getByRole('heading', { name: /môn đủ điều kiện học/ })).toBeVisible();
+  const results = page.getByRole('heading', { name: /môn đủ điều kiện học/ });
+  await expect(results).toBeVisible();
   await page.screenshot({ path: 'evidence/recommendations.png', fullPage: true });
+  await page.getByRole('button', { name: /^Xem MH\d+ trên đồ thị/ }).first().click();
+  const course = page.getByRole('combobox', { name: 'Môn học trung tâm' });
+  await expect(course).toHaveValue(/^MH\d+$/);
+  const selected = await course.inputValue();
+  const depth = page.getByRole('combobox', { name: 'Độ sâu liên kết' });
+  await depth.selectOption('3');
+  await page.reload();
+  await expect(course).toHaveValue(selected);
+  await expect(depth).toHaveValue('3');
+  await expect(studentFilter).toContainText('SV001');
+  await page.goBack();
+  await expect(students).toHaveValue('SV001');
+  await expect(semester).toHaveValue('HK003');
+  await expect(results).toBeVisible();
+  await page.goForward();
+  await expect(course).toHaveValue(selected);
+  await expect(depth).toHaveValue('3');
 });
 
 test('explore all network types and return to the course view on mobile', async ({ page }) => {
@@ -276,6 +328,28 @@ test('explore all network types and return to the course view on mobile', async 
   await expect(page.getByRole('button', { name: 'Tìm và tô đường tiên quyết' })).toBeVisible();
 });
 
+test('graph student filter distinguishes loading from no search results', async ({ page }) => {
+  await login(page);
+  let releaseStudents: () => void = () => undefined;
+  const studentsReady = new Promise<void>((resolve) => { releaseStudents = resolve; });
+  await page.route(/\/api\/students(?:\?|$)/, async (route) => {
+    await studentsReady;
+    await route.continue();
+  });
+  try {
+    await page.getByRole('button', { name: 'Mạng lưới', exact: true }).click();
+    await page.getByRole('button', { name: 'Trạng thái theo sinh viên' }).click();
+    const filter = page.getByRole('dialog', { name: 'Trạng thái theo sinh viên' });
+    await expect(filter.getByRole('status')).toContainText(/đang (lấy|tải)/i);
+    releaseStudents();
+    await expect(filter.getByRole('status')).toHaveText('100 sinh viên');
+    await filter.getByRole('searchbox', { name: 'Tìm sinh viên' }).fill('khong-co-sinh-vien-nay');
+    await expect(filter.getByRole('status')).toHaveText('Không tìm thấy sinh viên phù hợp.');
+  } finally {
+    releaseStudents();
+  }
+});
+
 test('quick search matches Vietnamese course names with or without accents', async ({ page }) => {
   await login(page);
   await page.getByRole('button', { name: 'Môn học', exact: true }).click();
@@ -306,7 +380,19 @@ test('quick search matches Vietnamese course names with or without accents', asy
 test('mobile navigation and keyboard skip link remain usable', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await login(page);
-  await page.getByRole('button', { name: 'Mở điều hướng', exact: true }).click();
+  const menu = page.getByRole('button', { name: 'Mở điều hướng', exact: true });
+  const skip = page.getByRole('link', { name: 'Bỏ qua điều hướng', exact: true });
+  await skip.focus();
+  await page.keyboard.press('Tab');
+  await expect(menu).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('button', { name: 'Đóng điều hướng', exact: true })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(menu).toBeFocused();
+  await skip.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#main-content')).toBeFocused();
+  await menu.click();
   await page.getByRole('button', { name: 'Môn học', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Môn học', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Mở điều hướng' })).toBeVisible();
@@ -343,6 +429,17 @@ test('manage a directed link from the mobile relationship list', async ({ page }
     const remove = page.getByRole('button', { name: `Xóa liên kết ${courseId} TIEN_QUYET_CHO MH002`, exact: true });
     await expect(remove).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.getByRole('button', { name: 'Mở điều hướng' }).click();
+    await page.getByRole('button', { name: 'Môn học', exact: true }).click();
+    await page.getByRole('searchbox', { name: 'Tìm môn học', exact: true }).fill(courseId);
+    await page.getByRole('button', { name: 'Xóa ' + courseId, exact: true }).click();
+    await dialog.getByRole('button', { name: 'Xóa bản ghi', exact: true }).click();
+    await expect(dialog.getByRole('checkbox')).toHaveAccessibleName(/1 liên kết/);
+    await expect(dialog.getByRole('button', { name: 'Xóa bản ghi và liên kết', exact: true })).toBeDisabled();
+    await dialog.getByRole('button', { name: 'Giữ lại', exact: true }).click();
+    await page.getByRole('button', { name: 'Mở điều hướng' }).click();
+    await page.getByRole('button', { name: 'Liên kết dữ liệu', exact: true }).click();
+    await search.fill(courseId);
     await remove.click();
     await dialog.getByRole('button', { name: 'Xóa liên kết', exact: true }).click();
     await expect(remove).toHaveCount(0);
@@ -361,8 +458,9 @@ test('admin previews and imports the original seven CSV files without duplicates
   const picker = page.getByLabel('Chọn bộ 7 tệp CSV', { exact: true });
   const backup = page.locator('details.transfer-backup');
   await expect(backup).not.toHaveAttribute('open', '');
-  await backup.getByText('Sao lưu cơ sở dữ liệu', { exact: true }).click();
+  await backup.getByText('Sao lưu và khôi phục cơ sở dữ liệu', { exact: true }).click();
   await expect(backup).toHaveAttribute('open', '');
+  await expect(backup).toContainText('Aura Console');
   await expect(page.getByRole('heading', { name: 'Tệp CSV bắt buộc' })).toBeVisible();
   await picker.setInputFiles(path.resolve('CSV', files[0]));
   await expect(page.getByRole('alert')).toContainText('Cần chọn đủ 7 tệp cùng lúc');
@@ -381,9 +479,26 @@ test('admin previews and imports the original seven CSV files without duplicates
   await page.getByRole('button', { name: 'Xác nhận nhập dữ liệu', exact: true }).click();
   expect((await commitResponse).status()).toBe(200);
   await expect(page.getByText('Đã nhập dữ liệu. Bản ghi và liên kết trùng được giữ duy nhất.', { exact: true })).toBeVisible();
-  const exported = await page.request.get('/api/exports/business-data');
+  const exportResponse = page.waitForResponse((response) => response.url().endsWith('/api/exports/business-data'));
+  await page.getByRole('button', { name: 'Tải toàn bộ dữ liệu JSON' }).click();
+  const exported = await exportResponse;
   expect(exported.status()).toBe(200);
   const data = await exported.json() as { nodes: unknown[]; relationships: unknown[] };
   expect(data.nodes).toHaveLength(210);
   expect(data.relationships).toHaveLength(1568);
+
+  await expect(page.getByRole('cell', { name: 'Xuất JSON · coursegraph-business-data.json', exact: true }).first()).toBeVisible();
+  const csv = page.waitForResponse((response) => new URL(response.url()).pathname === '/api/exports/csv');
+  await page.getByRole('button', { name: 'Tải CSV', exact: true }).click();
+  expect((await csv).status()).toBe(200);
+  await expect(page.locator('.data-table tbody tr').first()).toContainText('Xuất CSV · MonHoc.csv');
+
+  await page.getByRole('radio', { name: 'Tệp JSON', exact: true }).check();
+  await page.getByLabel('Chọn tệp dữ liệu JSON').setInputFiles({
+    name: 'coursegraph-business-data.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(data)),
+  });
+  await page.getByRole('button', { name: 'Kiểm tra dữ liệu', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Kết quả kiểm tra' })).toBeVisible();
+  await page.getByRole('button', { name: 'Xác nhận nhập dữ liệu', exact: true }).click();
+  await expect(page.getByText('Đã nhập dữ liệu. Bản ghi và liên kết trùng được giữ duy nhất.', { exact: true })).toBeVisible();
 });

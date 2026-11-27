@@ -92,14 +92,44 @@ function EntityForm({ entity, node, close, saved }: { entity: Entity; node: Busi
 }
 
 function DeleteDialog({ entity, node, close, deleted }: { entity: Entity; node: BusinessNode; close: () => void; deleted: () => void }) {
-  const [error, setError] = useState(''); const [force, setForce] = useState(false); const [confirmed, setConfirmed] = useState(false); const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [affectedRelationships, setAffectedRelationships] = useState<number | null>(null);
+  const [confirmed, setConfirmed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const force = affectedRelationships !== null;
   async function remove() {
     setBusy(true); setError('');
     try { await api(`/${entity.slug}/${encodeURIComponent(node.id)}${force ? '?force=true' : ''}`, { method: 'DELETE' }); deleted(); }
-    catch (cause) { setError(errorMessage(cause)); if (cause instanceof ApiError && cause.status === 409) setForce(true); }
+    catch (cause) {
+      setError(errorMessage(cause));
+      if (!(cause instanceof ApiError) || cause.status !== 409) return;
+      const details = cause.details;
+      if (!details || typeof details !== 'object' || !('affectedRelationships' in details)) return;
+      const count = details.affectedRelationships;
+      if (typeof count === 'number' && Number.isSafeInteger(count) && count > 0) {
+        setAffectedRelationships(count);
+        setConfirmed(false);
+      }
+    }
     finally { setBusy(false); }
   }
-  return <Modal title="Xác nhận xóa bản ghi" close={() => { if (!busy) close(); }}><div className="modal-body"><p>Bản ghi cần xóa: <strong>{nodeName(node)}</strong> <span className="code-pill">{node.id}</span>.</p><p>Dữ liệu đã xóa không thể hoàn tác trực tiếp.</p>{error && <ErrorNotice message={error} />}{force && <label className="checkbox-row"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />Tôi xác nhận xóa cả các liên kết của bản ghi này.</label>}</div><div className="modal-actions"><button className="button secondary" onClick={close} disabled={busy}>Giữ lại</button><button className="button destructive" onClick={() => { void remove(); }} disabled={busy || (force && !confirmed)}>{busy ? 'Đang xóa…' : force ? 'Xóa bản ghi và liên kết' : 'Xóa bản ghi'}</button></div></Modal>;
+  return <Modal title="Xác nhận xóa bản ghi" close={() => { if (!busy) close(); }}>
+    <div className="modal-body">
+      <p>Bản ghi cần xóa: <strong>{nodeName(node)}</strong> <span className="code-pill">{node.id}</span>.</p>
+      <p>Dữ liệu đã xóa không thể hoàn tác trực tiếp.</p>
+      {error && <ErrorNotice message={error} />}
+      {affectedRelationships !== null && <label className="checkbox-row">
+        <input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />
+        <span>Tôi xác nhận xóa bản ghi và <strong>{formatNumber(affectedRelationships)} liên kết</strong> của bản ghi này.</span>
+      </label>}
+    </div>
+    <div className="modal-actions">
+      <button className="button secondary" onClick={close} disabled={busy}>Giữ lại</button>
+      <button className="button destructive" onClick={() => { void remove(); }} disabled={busy || (force && !confirmed)}>
+        {busy ? 'Đang xóa…' : force ? 'Xóa bản ghi và liên kết' : 'Xóa bản ghi'}
+      </button>
+    </div>
+  </Modal>;
 }
 
 type CourseDetailTab = 'overview' | 'prerequisites' | 'dependents' | 'programs' | 'links';

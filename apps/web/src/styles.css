@@ -389,6 +389,9 @@ svg { flex-shrink: 0; vertical-align: middle; }
 .skip-link { position: fixed; top: -70px; left: 260px; background: var(--paper); color: var(--forest); padding: 10px 20px; z-index: 100; }
 .skip-link:focus { top: 10px; }
 .mobile-close, .menu-button, .sidebar-backdrop { display: none; }
+@media (max-width: 760px) {
+  .sidebar:not(.open) { visibility: hidden; }
+}
 .initial-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; flex-direction: column; }
 .initial-screen > .connected-mark { color: var(--forest); width: 60px; height: 60px; }
 .initial-screen .state-box { min-height: 100px; }

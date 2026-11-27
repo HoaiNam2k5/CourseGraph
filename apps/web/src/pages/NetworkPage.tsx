@@ -1,12 +1,12 @@
 import { lazy, Suspense, useState } from 'react';
 import { entityDefinitions, type EntityLabel } from '../../../../packages/shared/src/catalog.js';
 import { Loading, PageTitle } from '../components/common.js';
-import CourseGraph from './Graph.js';
+import CourseGraph, { type CourseGraphProps } from './Graph.js';
 import './graph-mobile.css';
 
 const NetworkExplorer = lazy(() => import('./NetworkExplorer.js'));
 
-export default function NetworkPage({ initialCourse, initialStudent }: { initialCourse: string; initialStudent: string }) {
+export default function NetworkPage(graph: CourseGraphProps) {
   const [view, setView] = useState<EntityLabel | 'all'>('MonHoc');
 
   return <div className="network-page">
@@ -22,7 +22,7 @@ export default function NetworkPage({ initialCourse, initialStudent }: { initial
         </select>
       </label>} />
     {view === 'MonHoc'
-      ? <CourseGraph initialCourse={initialCourse} initialStudent={initialStudent} />
+      ? <CourseGraph {...graph} />
       : <Suspense fallback={<Loading text="Đang mở mạng lưới…" />}>
           <NetworkExplorer view={view} onViewChange={setView} />
         </Suspense>}

@@ -1,26 +1,60 @@
 import { useState, type FormEvent } from 'react';
 import { KeyRound, Pencil, Plus, ShieldCheck, UserRound } from 'lucide-react';
+import { displayNameMaxLength, usernameCharacters, usernameMaxLength, usernameMinLength } from '../../../../packages/shared/src/account.js';
 import { api, errorMessage, useResource } from '../api.js';
 import type { User } from '../types.js';
 import { Empty, ErrorNotice, Loading, Modal, PageTitle } from '../components/common.js';
 import './admin-pages.css';
 
-export default function UsersPage({ currentUser }: { currentUser: User }) {
+export default function UsersPage({ currentUser, onDisplayNameChange }: { currentUser: User; onDisplayNameChange: (displayName: string) => void }) {
   const users = useResource<{ items: User[] }>('/users'); const [editing, setEditing] = useState<User | 'new' | null>(null); const [resetting, setResetting] = useState<User | null>(null); const [notice, setNotice] = useState('');
+  function accountSaved(user: User) {
+    if (user.id === currentUser.id && user.role === currentUser.role && user.active === currentUser.active) {
+      onDisplayNameChange(user.displayName);
+    }
+    setEditing(null);
+    setNotice('Đã lưu tài khoản.');
+    users.reload();
+  }
   return <div className="admin-accounts">
     <PageTitle eyebrow="QUẢN TRỊ HỆ THỐNG" title="Tài khoản & quyền truy cập" description="Phân chia quyền tra cứu và quản trị. Các thay đổi quyền có hiệu lực với cả phiên đang đăng nhập." actions={<button className="button primary" onClick={() => setEditing('new')}><Plus size={17} />Tạo tài khoản</button>} />
     {notice && <div className="notice success" role="status">{notice}</div>}
     <div className="role-explainer"><div><ShieldCheck size={21} /><span><strong>Quản trị viên</strong><small>Quản lý danh mục, liên kết và tài khoản.</small></span></div><div><UserRound size={21} /><span><strong>Người xem</strong><small>Xem danh mục, mạng lưới và gợi ý học tập.</small></span></div></div>
     <section className="panel">{users.loading ? <Loading /> : users.error ? <ErrorNotice message={users.error} retry={users.reload} /> : users.data?.items.length ? <div className="table-scroll"><table className="data-table"><thead><tr><th>Tài khoản</th><th>Tên hiển thị</th><th>Vai trò</th><th>Trạng thái</th><th><span className="sr-only">Thao tác</span></th></tr></thead><tbody>{users.data.items.map((user) => <tr key={user.id}><td><span className="code-pill">{user.username}</span>{currentUser.id === user.id && <span className="self-tag">Bạn</span>}</td><td>{user.displayName}</td><td><span className={`tag ${user.role === 'ADMIN' ? 'green' : 'sand'}`}>{user.role === 'ADMIN' ? 'Quản trị viên' : 'Người xem'}</span></td><td><span className={`status-text ${user.active ? 'active' : 'inactive'}`}><i />{user.active ? 'Hoạt động' : 'Đã khóa'}</span></td><td><div className="row-actions"><button className="icon-button" onClick={() => setEditing(user)} aria-label={`Sửa tài khoản ${user.username}`}><Pencil size={16} /></button><button className="icon-button" onClick={() => setResetting(user)} aria-label={`Đặt lại mật khẩu ${user.username}`}><KeyRound size={16} /></button></div></td></tr>)}</tbody></table></div> : <Empty />}</section>
-    {editing && <UserForm user={editing === 'new' ? null : editing} close={() => setEditing(null)} saved={() => { setEditing(null); setNotice('Đã lưu tài khoản.'); users.reload(); }} />}
+    {editing && <UserForm user={editing === 'new' ? null : editing} close={() => setEditing(null)} saved={accountSaved} />}
     {resetting && <PasswordReset user={resetting} close={() => setResetting(null)} saved={() => { setResetting(null); setNotice('Đã đặt lại mật khẩu. Các phiên cũ của tài khoản được thu hồi.'); }} />}
   </div>;
 }
 
-function UserForm({ user, close, saved }: { user: User | null; close: () => void; saved: () => void }) {
+function UserForm({ user, close, saved }: { user: User | null; close: () => void; saved: (user: User) => void }) {
   const [username, setUsername] = useState(user?.username ?? ''); const [displayName, setDisplayName] = useState(user?.displayName ?? ''); const [password, setPassword] = useState(''); const [role, setRole] = useState<User['role']>(user?.role ?? 'VIEWER'); const [active, setActive] = useState(user?.active ?? true); const [busy, setBusy] = useState(false); const [error, setError] = useState('');
-  async function submit(event: FormEvent) { event.preventDefault(); setBusy(true); setError(''); try { await api(`/users${user ? `/${encodeURIComponent(user.id)}` : ''}`, { method: user ? 'PATCH' : 'POST', body: JSON.stringify({ ...(user ? {} : { username, password }), displayName, role, active }) }); saved(); } catch (cause) { setError(errorMessage(cause)); } finally { setBusy(false); } }
-  return <Modal title={user ? 'Chỉnh sửa tài khoản' : 'Tạo tài khoản'} close={() => { if (!busy) close(); }}><form onSubmit={(event) => { void submit(event); }}><div className="form-grid"><label className="field"><span>Tên đăng nhập</span><input value={username} required minLength={3} maxLength={80} readOnly={Boolean(user)} autoComplete="off" onChange={(event) => setUsername(event.target.value)} /></label><label className="field"><span>Tên hiển thị</span><input value={displayName} required maxLength={150} onChange={(event) => setDisplayName(event.target.value)} /></label>{!user && <label className="field full"><span>Mật khẩu</span><input type="password" required minLength={12} maxLength={128} autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} /><small>Tối thiểu 12 ký tự.</small></label>}<label className="field"><span>Vai trò</span><select value={role} onChange={(event) => setRole(event.target.value as User['role'])}><option value="VIEWER">Người xem</option><option value="ADMIN">Quản trị viên</option></select></label><label className="checkbox-row"><input type="checkbox" checked={active} onChange={(event) => setActive(event.target.checked)} />Cho phép hoạt động</label></div>{error && <ErrorNotice message={error} />}<div className="modal-actions"><button type="button" className="button secondary" onClick={close} disabled={busy}>Hủy</button><button type="submit" className="button primary" disabled={busy}>{busy ? 'Đang lưu…' : 'Lưu tài khoản'}</button></div></form></Modal>;
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    setError('');
+    const normalizedUsername = username.trim().toLowerCase();
+    const name = displayName.trim();
+    if (!user && (normalizedUsername.length < usernameMinLength || normalizedUsername.length > usernameMaxLength || !usernameCharacters.test(normalizedUsername))) {
+      setError('Tên đăng nhập phải dài 3–60 ký tự và chỉ dùng chữ cái không dấu, chữ số, dấu chấm, gạch dưới hoặc gạch ngang.');
+      return;
+    }
+    if (!name || name.length > displayNameMaxLength) {
+      setError('Tên hiển thị phải dài từ 1 đến 120 ký tự.');
+      return;
+    }
+    const payload = user
+      ? { displayName: name, ...(role !== user.role ? { role } : {}), ...(active !== user.active ? { active } : {}) }
+      : { username: normalizedUsername, password, displayName: name, role, active };
+    setBusy(true);
+    try {
+      const updated = await api<User>(user ? '/users/' + encodeURIComponent(user.id) : '/users', {
+        method: user ? 'PATCH' : 'POST',
+        body: JSON.stringify(payload),
+      });
+      saved(updated);
+    } catch (cause) { setError(errorMessage(cause)); }
+    finally { setBusy(false); }
+  }
+  return <Modal title={user ? 'Chỉnh sửa tài khoản' : 'Tạo tài khoản'} close={() => { if (!busy) close(); }}><form onSubmit={(event) => { void submit(event); }}><div className="form-grid"><label className="field"><span>Tên đăng nhập</span><input value={username} required minLength={usernameMinLength} maxLength={usernameMaxLength} readOnly={Boolean(user)} autoComplete="off" onChange={(event) => setUsername(event.target.value)} /></label><label className="field"><span>Tên hiển thị</span><input value={displayName} required maxLength={displayNameMaxLength} onChange={(event) => setDisplayName(event.target.value)} /></label>{!user && <label className="field full"><span>Mật khẩu</span><input type="password" required minLength={12} maxLength={128} autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} /><small>Tối thiểu 12 ký tự.</small></label>}<label className="field"><span>Vai trò</span><select value={role} onChange={(event) => setRole(event.target.value as User['role'])}><option value="VIEWER">Người xem</option><option value="ADMIN">Quản trị viên</option></select></label><label className="checkbox-row"><input type="checkbox" checked={active} onChange={(event) => setActive(event.target.checked)} />Cho phép hoạt động</label></div>{error && <ErrorNotice message={error} />}<div className="modal-actions"><button type="button" className="button secondary" onClick={close} disabled={busy}>Hủy</button><button type="submit" className="button primary" disabled={busy}>{busy ? 'Đang lưu…' : 'Lưu tài khoản'}</button></div></form></Modal>;
 }
 
 function PasswordReset({ user, close, saved }: { user: User; close: () => void; saved: () => void }) {

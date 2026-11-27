@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { foldSearchText } from '../../../../packages/shared/src/search.js';
 import { formatNumber, nodeName, type BusinessNode } from '../types.js';
-import { Modal } from './common.js';
+import { ErrorNotice, Modal } from './common.js';
 import { useMobileGraph } from './GraphDetailSheet.js';
 import SearchField from './SearchField.js';
 
@@ -10,11 +10,14 @@ const noStudent = 'Không áp dụng sinh viên';
 
 type StudentFilterProps = {
   students: BusinessNode[];
+  loading: boolean;
+  error: string;
+  retry: () => void;
   value: string;
   onApply: (student: string) => void;
 };
 
-export default function GraphStudentFilter({ students, value, onApply }: StudentFilterProps) {
+export default function GraphStudentFilter({ students, loading, error, retry, value, onApply }: StudentFilterProps) {
   const [open, setOpen] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
   const selectionId = useId();
@@ -36,12 +39,12 @@ export default function GraphStudentFilter({ students, value, onApply }: Student
         <ChevronDown size={16} aria-hidden="true" />
       </button>
     </div>
-    {open && <StudentFilterDialog students={students} value={value} close={close}
+    {open && <StudentFilterDialog students={students} loading={loading} error={error} retry={retry} value={value} close={close}
       onApply={(studentId) => { onApply(studentId); close(); }} />}
   </>;
 }
 
-function StudentFilterDialog({ students, value, close, onApply }: StudentFilterProps & { close: () => void }) {
+function StudentFilterDialog({ students, loading, error, retry, value, close, onApply }: StudentFilterProps & { close: () => void }) {
   const [draft, setDraft] = useState(value);
   const [query, setQuery] = useState('');
   const mobile = useMobileGraph();
@@ -78,10 +81,14 @@ function StudentFilterDialog({ students, value, close, onApply }: StudentFilterP
               (checked ?? optionsList.current?.querySelector<HTMLInputElement>('input'))?.focus();
             }
           }} />
-        <p className="graph-student-result-count" role="status">
-          {matches.length ? `${formatNumber(matches.length)} sinh viên` : 'Không tìm thấy sinh viên phù hợp.'}
-        </p>
-        <fieldset ref={optionsList} className="graph-student-options">
+        {error && !loading
+          ? <ErrorNotice message={error} retry={retry} />
+          : <p className="graph-student-result-count" role="status">
+              {loading ? 'Đang tải danh sách sinh viên…' : matches.length
+                ? `${formatNumber(matches.length)} sinh viên`
+                : 'Không tìm thấy sinh viên phù hợp.'}
+            </p>}
+        <fieldset ref={optionsList} className="graph-student-options" aria-busy={loading}>
           <legend className="sr-only">Chọn sinh viên hiển thị trên đồ thị</legend>
           {!terms.length && <label className="graph-student-choice">
             <input type="radio" name={group} checked={draft === ''} onChange={() => setDraft('')} />

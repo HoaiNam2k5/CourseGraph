@@ -3,13 +3,15 @@ import { SignJWT, jwtVerify } from 'jose';
 import type { Driver, ManagedTransaction } from 'neo4j-driver';
 import type { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
+import { usernameCharacters, usernameMaxLength, usernameMinLength } from '../../../packages/shared/src/account.js';
 import type { AppConfig } from './config.js';
 import { authWriteLock, plain, readTransaction, writeTransaction } from './db/connection.js';
 import { HttpError } from './errors.js';
 
 export const cookieName = 'coursegraph_session';
 export const passwordSchema = z.string().min(10).max(128);
-export const usernameSchema = z.string().trim().toLowerCase().regex(/^[a-z0-9._-]{3,60}$/);
+export const usernameSchema = z.string().trim().toLowerCase()
+  .min(usernameMinLength).max(usernameMaxLength).regex(usernameCharacters);
 
 export interface PublicUser { id: string; username: string; displayName: string; role: 'ADMIN' | 'VIEWER'; active: boolean }
 export interface StoredUser extends PublicUser { passwordHash: string; tokenVersion: number }

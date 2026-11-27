@@ -27,7 +27,7 @@ export interface Statistics {
   longestChain: { length: number; courses: { id: string; name: string }[] };
 }
 export interface ImportPreview { id: string; hash: string; summary: unknown; warnings: unknown }
-export interface TransferEntry { id: string; type?: string; kind?: string; status?: string; createdAt?: string; timestamp?: string; username?: string; nodeCount?: number; relationshipCount?: number }
+export interface TransferEntry { id: string; type?: string; kind?: string; status?: string; createdAt?: string; timestamp?: string; username?: string; nodeCount?: number; relationshipCount?: number; format?: 'CSV' | 'JSON'; filename?: string }
 export const entityTitles: Record<string, string> = { MonHoc: 'Môn học', SinhVien: 'Sinh viên', GiangVien: 'Giảng viên', Khoa: 'Khoa', HocKy: 'Học kỳ', ChuongTrinhDaoTao: 'Chương trình' };
 export const nodeName = (node: BusinessNode): string => String(node.properties.TenMH ?? node.properties.HoTen ?? node.properties.TenKhoa ?? node.properties.TenChuongTrinh ?? node.properties.TenHK ?? node.id);
 export const formatNumber = (value: number): string => new Intl.NumberFormat('vi-VN').format(value);
