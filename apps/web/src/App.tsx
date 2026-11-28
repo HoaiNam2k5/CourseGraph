@@ -3,7 +3,7 @@ import { ArrowRight, BookOpen, GraduationCap, LayoutDashboard, LogOut, Menu, Net
 import { api, errorMessage, setCsrfToken, useResource } from './api.js';
 import type { Catalog, Session } from './types.js';
 import { ConnectedMark, ErrorNotice, Loading } from './components/common.js';
-import LoginGraph from './components/LoginGraph.js';
+import TrainingGraph from './components/TrainingGraph.js';
 import Dashboard from './pages/Dashboard.js';
 import { EntitiesPage } from './pages/Entities.js';
 import Recommendations from './pages/Recommendations.js';
@@ -162,6 +162,6 @@ function Login({ message, loggedIn }: { message: string; loggedIn: (session: Ses
       </div>
       <div className="login-form-footer">CourseGraph / 2026</div>
     </section>
-    <div className="login-graph-side"><LoginGraph /></div>
+    <div className="login-graph-side"><TrainingGraph placement="login" /></div>
   </main>;
 }

@@ -41,7 +41,7 @@ test('login serves the favicon and supports selecting, moving and resetting the 
   await student.press('ArrowLeft');
   expect(await position()).not.toEqual(initialPosition);
 
-  const edge = graph.locator('.login-graph-link').last();
+  const edge = graph.locator('.training-graph-link').last();
   const beforeDrag = await edge.getAttribute('d');
   expect(beforeDrag).toMatch(/ Q /);
   const bounds = await student.boundingBox();
@@ -56,6 +56,50 @@ test('login serves the favicon and supports selecting, moving and resetting the 
   await graph.getByRole('button', { name: 'Đặt lại sơ đồ' }).click();
   expect(await position()).toEqual(initialPosition);
   await expect(graph.getByRole('button', { name: 'Môn học', exact: true })).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('dashboard diagram can be explored and reset on desktop and mobile', async ({ page }) => {
+  await login(page);
+  const graph = page.getByRole('figure', { name: 'Sơ đồ dữ liệu mẫu' });
+  const course = graph.getByRole('button', { name: 'Chọn Môn học trong sơ đồ', exact: true });
+  const student = graph.getByRole('button', { name: 'Chọn Sinh viên trong sơ đồ', exact: true });
+  const reset = graph.getByRole('button', { name: 'Đặt lại sơ đồ' });
+  await expect(course).toHaveAttribute('aria-pressed', 'true');
+  await expect(graph.locator('.training-graph-flow').first()).toHaveCSS('animation-name', 'training-graph-flow');
+  await student.press('Enter');
+  await expect(student).toHaveAttribute('aria-pressed', 'true');
+  await expect(graph.locator('.link-active')).toHaveCount(1);
+  await expect(graph.getByText(/nối sinh viên với các môn đã hoàn thành/)).toBeVisible();
+
+  const edge = graph.locator('.link-active .training-graph-link');
+  const initialPath = await edge.getAttribute('d');
+  await student.press('ArrowLeft');
+  await expect(edge).not.toHaveAttribute('d', initialPath!);
+  const keyboardPath = await edge.getAttribute('d');
+  const studentBounds = await student.boundingBox();
+  expect(studentBounds).not.toBeNull();
+  const { x, y, height, width } = studentBounds!;
+  await page.mouse.move(x + width / 2, y + height / 2);
+  await page.mouse.down();
+  await page.mouse.move(x + width / 2 + 15, y + height / 2 - 34, { steps: 5 });
+  await page.mouse.up();
+  await expect(edge).not.toHaveAttribute('d', keyboardPath!);
+  await reset.click();
+  await expect(course).toHaveAttribute('aria-pressed', 'true');
+  await expect(graph.locator('.training-graph-link').last()).toHaveAttribute('d', initialPath!);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  const openNetwork = page.getByRole('button', { name: 'Mở mạng lưới', exact: true });
+  await expect(graph.locator('.training-graph-flow').first()).toHaveCSS('display', 'none');
+  expect(await graph.evaluate((node) => node.getBoundingClientRect().right <= window.innerWidth)).toBe(true);
+  expect((await graph.boundingBox())!.y).toBeGreaterThan((await openNetwork.boundingBox())!.y);
+  await student.click();
+  await expect(student).toHaveAttribute('aria-pressed', 'true');
+  await reset.click();
+  await expect(course).toHaveAttribute('aria-pressed', 'true');
+  await openNetwork.click();
+  await expect(page.getByRole('heading', { name: 'Mạng lưới', exact: true })).toBeVisible();
 });
 
 test('admin reads real dashboard, catalog and signs out', async ({ page }) => {

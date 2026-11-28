@@ -68,7 +68,7 @@ function linkPath(from: Point, to: Point, bend: number) {
   return `M ${start.x} ${start.y} Q ${control.x} ${control.y} ${end.x} ${end.y}`;
 }
 
-export default function LoginGraph() {
+export default function TrainingGraph({ placement }: { placement: 'login' | 'dashboard' }) {
   const id = useId();
   const surface = useRef<HTMLDivElement>(null);
   const drag = useRef<{ pointerId: number; node: NodeId; offset: Point } | null>(null);
@@ -130,16 +130,28 @@ export default function LoginGraph() {
     setSelected('course');
   }
 
-  return <figure className="login-graph" aria-labelledby={`${id}-title`} aria-describedby={`${id}-hint`}>
-    <header className="login-graph-header">
+  function resetOnTouch(event: PointerEvent<HTMLButtonElement>) {
+    // A touch release immediately after dragging can arrive without a click.
+    if (!event.isPrimary || event.pointerType !== 'touch') return;
+    const bounds = event.currentTarget.getBoundingClientRect();
+    if (event.clientX >= bounds.left && event.clientX <= bounds.right
+      && event.clientY >= bounds.top && event.clientY <= bounds.bottom) reset();
+  }
+
+  const resetButton = <button className="icon-button training-graph-reset" type="button"
+    onClick={reset} onPointerUp={placement === 'dashboard' ? resetOnTouch : undefined}
+    aria-label="Đặt lại sơ đồ" title="Đặt lại sơ đồ"><RotateCcw size={17} aria-hidden="true" /></button>;
+
+  return <figure className={`training-graph training-graph--${placement}`} aria-labelledby={`${id}-title`} aria-describedby={`${id}-hint`}>
+    <header className="training-graph-header">
       <div>
-        <h2 id={`${id}-title`}>Sơ đồ dữ liệu mẫu</h2>
+        <h2 id={`${id}-title`} className={placement === 'dashboard' ? 'sr-only' : undefined}>Sơ đồ dữ liệu mẫu</h2>
         <p id={`${id}-hint`} className="sr-only">Chọn hoặc kéo nút. Dùng phím mũi tên để di chuyển.</p>
       </div>
-      <button className="icon-button" type="button" onClick={reset} aria-label="Đặt lại sơ đồ" title="Đặt lại sơ đồ"><RotateCcw size={17} aria-hidden="true" /></button>
+      {placement === 'login' && resetButton}
     </header>
-    <div className="login-graph-surface" ref={surface}>
-      <svg className="login-graph-links" viewBox={`0 0 ${graphWidth} ${graphHeight}`} aria-hidden="true">
+    <div className="training-graph-surface" ref={surface}>
+      <svg className="training-graph-links" viewBox={`0 0 ${graphWidth} ${graphHeight}`} aria-hidden="true">
         <defs>
           <marker id={`${id}-arrow`} viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="m1 1 6 3-6 3" /></marker>
           <marker id={`${id}-active-arrow`} className="active-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="m1 1 6 3-6 3" /></marker>
@@ -149,22 +161,26 @@ export default function LoginGraph() {
           if (!path) return null;
           const active = from === selected || to === selected;
           return <g key={from + to} className={active ? 'link-active' : undefined}>
-            <path className="login-graph-link" d={path} markerEnd={`url(#${id}-${active ? 'active-arrow' : 'arrow'})`} />
-            {active && !dragging && <path key={selected} className="login-graph-flow" d={path} />}
+            <path className="training-graph-link" d={path} markerEnd={`url(#${id}-${active ? 'active-arrow' : 'arrow'})`} />
+            {active && !dragging && <path key={selected} className="training-graph-flow" d={path} />}
           </g>;
         })}
       </svg>
       {nodes.map(({ id: node, label, icon: Icon }) => {
         const { x, y } = positions[node];
-        return <button key={node} type="button" className={`login-graph-node${dragging === node ? ' dragging' : ''}`}
+        return <button key={node} type="button" className={`training-graph-node${dragging === node ? ' dragging' : ''}`}
+          aria-label={placement === 'dashboard' ? `Chọn ${label} trong sơ đồ` : undefined}
           aria-pressed={selected === node} style={{ left: `${x / graphWidth * 100}%`, top: `${y / graphHeight * 100}%` }}
           onClick={() => setSelected(node)} onKeyDown={(event) => moveWithKeys(event, node)}
           onPointerDown={(event) => startDrag(event, node)} onPointerMove={moveDrag} onPointerUp={endDrag}
           onPointerCancel={endDrag} onLostPointerCapture={endDrag}>
-          <span className="login-graph-node-icon"><Icon size={18} aria-hidden="true" /></span><span className="login-graph-node-label">{label}</span>
+          <span className="training-graph-node-icon"><Icon size={18} aria-hidden="true" /></span><span className="training-graph-node-label">{label}</span>
         </button>;
       })}
     </div>
-    <figcaption aria-live="polite"><strong>{activeNode.label}</strong><span>{activeNode.description}</span></figcaption>
+    <figcaption>
+      <div className="training-graph-description" aria-live="polite"><strong>{activeNode.label}</strong><span>{activeNode.description}</span></div>
+      {placement === 'dashboard' && resetButton}
+    </figcaption>
   </figure>;
 }

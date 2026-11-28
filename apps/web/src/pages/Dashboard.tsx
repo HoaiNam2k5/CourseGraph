@@ -3,7 +3,8 @@ import { ArrowRight, BookOpen, GraduationCap, Layers3, School } from 'lucide-rea
 import { useResource } from '../api.js';
 import type { Statistics } from '../types.js';
 import { formatNumber } from '../types.js';
-import { ConnectedMark, Empty, ErrorNotice, PageTitle, ProgressBar, SkeletonCards } from '../components/common.js';
+import { Empty, ErrorNotice, PageTitle, ProgressBar, SkeletonCards } from '../components/common.js';
+import TrainingGraph from '../components/TrainingGraph.js';
 
 export default function Dashboard({ go }: { go: (page: string) => void }) {
   const resource = useResource<Statistics>('/statistics');
@@ -20,12 +21,14 @@ export default function Dashboard({ go }: { go: (page: string) => void }) {
     <div className="metric-grid">{metrics.map(({ key, title, icon: Icon, target }) => <button className="metric-card" key={key} onClick={() => go(target)}><div className="metric-top"><span>{title}</span><span className="metric-icon" aria-hidden="true"><Icon size={19} /></span></div><MetricValue value={stats.counts[key] ?? 0} /><span className="metric-footer">Xem danh mục<ArrowRight size={15} /></span></button>)}</div>
     <div className="dashboard-grid">
       <section className="network-feature">
-        <div>
-          <h2>Mạng lưới đào tạo</h2>
-          <p>{formatNumber(stats.relationshipCount)} liên kết giữa các bản ghi đào tạo.</p>
-          <button className="button cream" onClick={() => go('graph')}>Mở mạng lưới<ArrowRight size={17} /></button>
+        <div className="network-feature-main">
+          <div className="network-feature-intro">
+            <h2>Mạng lưới đào tạo</h2>
+            <p>{formatNumber(stats.relationshipCount)} liên kết giữa các bản ghi đào tạo.</p>
+            <button className="button cream" onClick={() => go('graph')}>Mở mạng lưới<ArrowRight size={17} /></button>
+          </div>
+          <TrainingGraph placement="dashboard" />
         </div>
-        <ConnectedMark large />
         <div className="feature-bottom"><span><i />Neo4j · Property Graph</span><span>{stats.relationsByType.length} loại quan hệ</span></div>
       </section>
       <section className="panel faculty-panel">
